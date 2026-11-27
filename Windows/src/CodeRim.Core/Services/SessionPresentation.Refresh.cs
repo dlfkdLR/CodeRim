@@ -36,12 +36,13 @@ public static partial class SessionPresentation
             return RustAccountingLoadState.IsLoaded ? PlanSingle(prior, incoming) : PlanColdSingle(prior, incoming);
         // A profile may have no accounting work yet. Loading the entire native library solely
         // for a small refresh costs more than the released scan; a million possible pairs pays for it.
-        if (old.Length != 0 && !RustAccountingLoadState.IsLoaded && (long)old.Length * next.Length < 1024L * 1024)
-            return null;
+        bool cold = old.Length != 0 && !RustAccountingLoadState.IsLoaded && (long)old.Length * next.Length < 1024L * 1024;
+        if (cold && (old.Length > 64 || next.Length > 64)) return null;
         // The compatibility path retains the original publication point and exceptions for malformed input.
         if (Array.IndexOf(next, null) >= 0 || Array.IndexOf(old, null) >= 0) return null;
         if (old.Length == 0) return new((SessionActivity[])next.Clone(), null, 0);
-        return old.Length <= 32 && next.Length <= 32 ? PlanSmall(old, next) : Plan(old, next);
+        if (cold) return PlanColdSmall(old, next);
+        return old.Length <= 64 && next.Length <= 64 ? PlanSmall(old, next) : Plan(old, next);
 #else
         return null;
 #endif
@@ -71,6 +72,36 @@ public static partial class SessionPresentation
         return new([published], transition != 0 ? published : null, signals);
     }
 
+    private static SessionActivityRefresh PlanColdSmall(SessionActivity[] old, SessionActivity[] next)
+    {
+        var result = (SessionActivity[])next.Clone();
+        SessionActivity? attention = null;
+        int signals = 0;
+        for (int i = 0; i < next.Length; i++)
+        {
+            var item = next[i];
+            bool copySince = item.Provider == "claude";
+            int signal = item.State switch { "idle" => 1, "waiting" => 2, _ => 0 };
+            if (!copySince && signal == 0) continue;
+            bool busy = false;
+            foreach (var prior in old)
+            {
+                if (!SameIdentity(item, prior)) continue;
+                if (copySince && prior.State == item.State && prior.ProcessStartedAt == item.ProcessStartedAt)
+                {
+                    result[i] = item with { Since = prior.Since };
+                    copySince = false;
+                }
+                busy |= prior.State == "busy";
+                if (!copySince && (signal == 0 || busy)) break;
+            }
+            if (!busy || signal == 0) continue;
+            signals |= item.ParentThreadId is null ? signal | (signal << 2) : signal;
+            if (attention is null || result[i].Since > attention.Since) attention = result[i];
+        }
+        return new(result, attention, signals);
+    }
+
     private static SessionActivityRefresh PlanSingle(SessionActivity prior, SessionActivity incoming)
     {
         int beforeState = KnownState(prior.State);
@@ -85,11 +116,21 @@ public static partial class SessionPresentation
 
     private static SessionActivityRefresh PlanSmall(SessionActivity[] old, SessionActivity[] next)
     {
-        // At most 32 rows from each capture. Their source positions provide exact ordinals
+        // At most 64 rows from each capture. Their source positions provide exact ordinals
         // without constructing a hash table. Only previous-row identities can match a new row.
         Span<RustActivityRefresh.Node> prior = stackalloc RustActivityRefresh.Node[old.Length];
         Span<RustActivityRefresh.Node> incoming = stackalloc RustActivityRefresh.Node[next.Length];
         Span<int> matches = stackalloc int[next.Length];
+        Span<int> index = old.Length > 32 || next.Length > 32 ? stackalloc int[128] : default;
+        index.Clear();
+        EncodeSmall(old, next, prior, incoming, index);
+        var decision = RustActivityRefresh.Resolve(prior, incoming, old.Length + 1, matches);
+        return Restore(old, next, matches, decision);
+    }
+
+    private static void EncodeSmall(SessionActivity[] old, SessionActivity[] next,
+        Span<RustActivityRefresh.Node> prior, Span<RustActivityRefresh.Node> incoming, Span<int> index)
+    {
         for (int pass = 0; pass < 2; pass++)
         {
             var source = pass == 0 ? old : next;
@@ -107,6 +148,16 @@ public static partial class SessionPresentation
                 int count = pass == 0 ? i : old.Length;
                 int id = count;
                 if (pass == 1 && i < old.Length && SameIdentity(row, old[i])) id = prior[i].Id;
+                else if (!index.IsEmpty)
+                {
+                    // Up to 64 previous rows occupy a 128-slot table. Compare both original
+                    // UTF-16 fields on collisions and retain the first previous row for duplicates.
+                    int slot = (row.Id?.GetHashCode(StringComparison.Ordinal) ?? 0) & 127;
+                    while (index[slot] != 0 && !SameIdentity(row, old[index[slot] - 1]))
+                        slot = (slot + 1) & 127;
+                    if (index[slot] != 0) id = index[slot] - 1;
+                    else if (pass == 0) index[slot] = i + 1;
+                }
                 else
                     for (int j = 0; j < count; j++)
                         if (SameIdentity(row, old[j])) { id = prior[j].Id; break; }
@@ -120,8 +171,6 @@ public static partial class SessionPresentation
                 encoded[i] = Encode(row, id, state);
             }
         }
-        var decision = RustActivityRefresh.Resolve(prior, incoming, old.Length + 1, matches);
-        return Restore(old, next, matches, decision);
     }
 
     private static SessionActivityRefresh Restore(SessionActivity[] old, SessionActivity[] next, ReadOnlySpan<int> matches, RustActivityRefresh.Decision decision)

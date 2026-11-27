@@ -405,7 +405,10 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
             PublishSingleActivity(before, single);
             return;
         }
-        ReconcileSessionActivity(previous, current);
+        if (SessionPresentation.TryPlanActivityRefresh(previous, current) is { } refresh)
+            PublishPlannedActivity(previous, refresh);
+        else
+            ReconcileSessionActivity(previous, current);
     }
 
     private void PublishSingleActivity(SessionActivity[] previous, SessionActivityRefresh refresh)
@@ -428,38 +431,69 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
         if (!previous.SequenceEqual(Sessions)) Changed();
     }
 
+    private void PublishPlannedActivity(IReadOnlyList<SessionActivity> previous, SessionActivityRefresh refresh)
+    {
+        var current = refresh.Sessions;
+        Sessions = current;
+        bool includeSubagents = settings.Current.SubagentSound;
+        bool finished = refresh.ShouldChimeFinished(includeSubagents);
+        bool played = settings.Current.CompletionSound && (finished || refresh.ShouldChimeBlocked(includeSubagents));
+        if (played) SessionChime.Play(finished ? settings.Current.FinishedSound : settings.Current.BlockedSound);
+        // A sound callback can mutate the published or prior array before the attention lookup.
+        if (refresh.Attention is { } attention)
+            SessionAttentionRequested?.Invoke(played ? LatestActivityTransition(previous, current) : attention);
+        if (!previous.SequenceEqual(Sessions)) Changed();
+    }
+
     private void ReconcileSessionActivity(IReadOnlyList<SessionActivity> previous, IReadOnlyList<SessionActivity> current)
     {
-        var refresh = SessionPresentation.TryPlanActivityRefresh(previous, current);
-        current = refresh?.Sessions ?? current.Select(item => previous.FirstOrDefault(old => item.Provider == "claude" && old.Id == item.Id && old.Provider == item.Provider
+        current = current.Select(item => previous.FirstOrDefault(old => item.Provider == "claude" && old.Id == item.Id && old.Provider == item.Provider
             && old.State == item.State && old.ProcessStartedAt == item.ProcessStartedAt) is { } old
                 ? item with { Since = old.Since } : item).ToArray();
         Sessions = current;
         bool Crossed(SessionActivity x, string state, bool includeSubagents) => x.State == state
             && (includeSubagents || x.ParentThreadId is null)
             && previous.Any(old => old.Id == x.Id && old.Provider == x.Provider && old.State == "busy");
-        var finished = refresh?.Finished ?? current.Any(x => Crossed(x, "idle", true));
-        var blocked = refresh?.Blocked ?? current.Any(x => Crossed(x, "waiting", true));
+        var finished = current.Any(x => Crossed(x, "idle", true));
+        var blocked = current.Any(x => Crossed(x, "waiting", true));
         // A sub-agent's own chime is opt-in; the chat that started it still sounds.
         var includeSubagentSound = settings.Current.SubagentSound;
-        var finishedSound = refresh?.ShouldChimeFinished(includeSubagentSound) ?? current.Any(x => Crossed(x, "idle", includeSubagentSound));
-        var blockedSound = refresh?.ShouldChimeBlocked(includeSubagentSound) ?? current.Any(x => Crossed(x, "waiting", includeSubagentSound));
-        bool played = settings.Current.CompletionSound && (finishedSound || blockedSound);
-        if (played) SessionChime.Play(finishedSound ? settings.Current.FinishedSound : settings.Current.BlockedSound);
-        // The sound runs after publication. Read the current rows again if it ran before attention.
+        var finishedSound = current.Any(x => Crossed(x, "idle", includeSubagentSound));
+        var blockedSound = current.Any(x => Crossed(x, "waiting", includeSubagentSound));
+        if (settings.Current.CompletionSound)
+        {
+            if (finishedSound) SessionChime.Play(settings.Current.FinishedSound);
+            else if (blockedSound) SessionChime.Play(settings.Current.BlockedSound);
+        }
         if (finished || blocked)
-            SessionAttentionRequested?.Invoke((played ? null : refresh?.Attention) ?? LatestActivityTransition(previous, current));
+            SessionAttentionRequested?.Invoke(LatestActivityTransition(previous, current));
         // Publish at the mutation boundary. Every caller, including updates that
         // only change a task title/state and reuse the token cache, needs this.
         if (!previous.SequenceEqual(Sessions)) Changed();
     }
 
-    private static SessionActivity LatestActivityTransition(IReadOnlyList<SessionActivity> previous, IReadOnlyList<SessionActivity> current) =>
-        current.Where(x => x.State is "idle" or "waiting"
+    private static SessionActivity LatestActivityTransition(IReadOnlyList<SessionActivity> previous, IReadOnlyList<SessionActivity> current)
+    {
+        if (previous is SessionActivity[] before && current is SessionActivity[] after)
+        {
+            SessionActivity? latest = null;
+            foreach (var item in after)
+            {
+                if (item.State is not ("idle" or "waiting")) continue;
+                foreach (var old in before)
+                {
+                    if (old.Id != item.Id || old.Provider != item.Provider || old.State != "busy") continue;
+                    if (latest is null || item.Since > latest.Since) latest = item;
+                    break;
+                }
+            }
+            // A chime callback may remove every matching transition. Keep LINQ's original error.
+            return latest ?? Enumerable.Empty<SessionActivity>().First();
+        }
+        return current.Where(x => x.State is "idle" or "waiting"
             && previous.Any(old => old.Id == x.Id && old.Provider == x.Provider && old.State == "busy"))
             .OrderByDescending(x => x.Since).First();
-
-
+    }
 
     private static List<SessionActivity> ReadSessions(string[] enabled, bool includeUnknown, CancellationToken cancellationToken)
     {
