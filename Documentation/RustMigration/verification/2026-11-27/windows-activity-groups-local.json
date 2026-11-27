@@ -1,0 +1,468 @@
+{
+  "candidate": "6a2ced91e5870c310901c49c97f9d8ee2228adea",
+  "publicRelease": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "reference": "7cd8598690e78705424360b076560887ceb5016e",
+  "entryPoints": [
+    "Windows/src/CodeRim.Windows/Views/NotchPopover.cs",
+    "Windows/src/CodeRim.Windows/ViewModels/DashboardStore.SessionTokens.cs"
+  ],
+  "environment": "macOS .NET 10.0.12, arm64 native and x64 via Rosetta. Times are microseconds, allocation is managed bytes per call. Windows CI records its own timings.",
+  "driver": "Scripts/rust_migration/windows-activity-groups/check.py",
+  "sourcesSha256": {
+    "final-arm64.json": "b16ba540c7a817feb661a781da49288e0eab348a437196e5244d5ac40136255d",
+    "final-rosetta.json": "1df749e043e0128a82647b10a53d8da279bf51055041bf7ab3132b86dc6f9d7b"
+  },
+  "unitTests": {
+    "bridge": 71,
+    "activityGroups": 22,
+    "skipped": 0
+  },
+  "platforms": {
+    "Arm64": {
+      "runtime": {
+        "architecture": "Arm64",
+        "framework": ".NET 10.0.12",
+        "os": "macOS 26.6.2"
+      },
+      "contract": {
+        "cases": 549,
+        "rows": 17885,
+        "exceptions": 4,
+        "sha256": "b567506038f0e0d97072deabc25e1f68d6f03fa81a312511ad490ba9c050bda8"
+      },
+      "warmMedianByShape": {
+        "flat-0": {
+          "release": {
+            "microseconds": 1.446,
+            "managedBytes": 1600
+          },
+          "rust": {
+            "microseconds": 0.337,
+            "managedBytes": 360
+          }
+        },
+        "flat-1": {
+          "release": {
+            "microseconds": 3.554,
+            "managedBytes": 3680
+          },
+          "rust": {
+            "microseconds": 0.759,
+            "managedBytes": 1000
+          }
+        },
+        "flat-2": {
+          "release": {
+            "microseconds": 6.195,
+            "managedBytes": 4688
+          },
+          "rust": {
+            "microseconds": 1.862,
+            "managedBytes": 1424
+          }
+        },
+        "flat-8": {
+          "release": {
+            "microseconds": 14.532,
+            "managedBytes": 13968
+          },
+          "rust": {
+            "microseconds": 5.03,
+            "managedBytes": 4600
+          }
+        },
+        "tree-2": {
+          "release": {
+            "microseconds": 9.616,
+            "managedBytes": 5512
+          },
+          "rust": {
+            "microseconds": 3.21,
+            "managedBytes": 2016
+          }
+        },
+        "tree-8": {
+          "release": {
+            "microseconds": 32.832,
+            "managedBytes": 18792
+          },
+          "rust": {
+            "microseconds": 13.092,
+            "managedBytes": 6584
+          }
+        },
+        "flat-64": {
+          "release": {
+            "microseconds": 116.46,
+            "managedBytes": 86760
+          },
+          "rust": {
+            "microseconds": 30.34,
+            "managedBytes": 25600
+          }
+        },
+        "tree-64": {
+          "release": {
+            "microseconds": 180.15,
+            "managedBytes": 140512
+          },
+          "rust": {
+            "microseconds": 59.6,
+            "managedBytes": 41864
+          }
+        },
+        "chain-64": {
+          "release": {
+            "microseconds": 994.213,
+            "managedBytes": 249304
+          },
+          "rust": {
+            "microseconds": 81.94,
+            "managedBytes": 41864
+          }
+        },
+        "missing-64": {
+          "release": {
+            "microseconds": 589.413,
+            "managedBytes": 160368
+          },
+          "rust": {
+            "microseconds": 75.35,
+            "managedBytes": 61504
+          }
+        },
+        "flat-512": {
+          "release": {
+            "microseconds": 1453.825,
+            "managedBytes": 729088
+          },
+          "rust": {
+            "microseconds": 273.45,
+            "managedBytes": 230552
+          }
+        },
+        "tree-512": {
+          "release": {
+            "microseconds": 3821.675,
+            "managedBytes": 1179568
+          },
+          "rust": {
+            "microseconds": 569.875,
+            "managedBytes": 370912
+          }
+        },
+        "chain-512": {
+          "release": {
+            "microseconds": 32462.05,
+            "managedBytes": 8560336
+          },
+          "rust": {
+            "microseconds": 599.1,
+            "managedBytes": 370912
+          }
+        },
+        "chain-1024": {
+          "release": {
+            "microseconds": 115976.15,
+            "managedBytes": 31309576
+          },
+          "rust": {
+            "microseconds": 3952.9,
+            "managedBytes": 764784
+          }
+        }
+      },
+      "defaultJitFirstCallMedians": {
+        "flat-0": {
+          "release": {
+            "us": 11299.8,
+            "managedBytes": 8936
+          },
+          "rust": {
+            "us": 5909.4,
+            "managedBytes": 728
+          }
+        },
+        "flat-1": {
+          "release": {
+            "us": 24983,
+            "managedBytes": 11168
+          },
+          "rust": {
+            "us": 10382.5,
+            "managedBytes": 1360
+          }
+        },
+        "flat-2": {
+          "release": {
+            "us": 25863.7,
+            "managedBytes": 12176
+          },
+          "rust": {
+            "us": 14511.3,
+            "managedBytes": 9176
+          }
+        },
+        "tree-8": {
+          "release": {
+            "us": 29691.7,
+            "managedBytes": 26656
+          },
+          "rust": {
+            "us": 13723.5,
+            "managedBytes": 14400
+          }
+        },
+        "chain-64": {
+          "release": {
+            "us": 26291.9,
+            "managedBytes": 257168
+          },
+          "rust": {
+            "us": 14765.7,
+            "managedBytes": 49680
+          }
+        }
+      }
+    },
+    "X64": {
+      "runtime": {
+        "architecture": "X64",
+        "framework": ".NET 10.0.12",
+        "os": "macOS 26.6.2"
+      },
+      "contract": {
+        "cases": 549,
+        "rows": 17885,
+        "exceptions": 4,
+        "sha256": "b567506038f0e0d97072deabc25e1f68d6f03fa81a312511ad490ba9c050bda8"
+      },
+      "warmMedianByShape": {
+        "flat-0": {
+          "release": {
+            "microseconds": 4.026,
+            "managedBytes": 1600
+          },
+          "rust": {
+            "microseconds": 1.754,
+            "managedBytes": 360
+          }
+        },
+        "flat-1": {
+          "release": {
+            "microseconds": 8.524,
+            "managedBytes": 3680
+          },
+          "rust": {
+            "microseconds": 1.79,
+            "managedBytes": 1000
+          }
+        },
+        "flat-2": {
+          "release": {
+            "microseconds": 13.257,
+            "managedBytes": 4688
+          },
+          "rust": {
+            "microseconds": 3.868,
+            "managedBytes": 1424
+          }
+        },
+        "flat-8": {
+          "release": {
+            "microseconds": 59.92,
+            "managedBytes": 13968
+          },
+          "rust": {
+            "microseconds": 8.753,
+            "managedBytes": 4600
+          }
+        },
+        "tree-2": {
+          "release": {
+            "microseconds": 85.508,
+            "managedBytes": 5512
+          },
+          "rust": {
+            "microseconds": 7.02,
+            "managedBytes": 2016
+          }
+        },
+        "tree-8": {
+          "release": {
+            "microseconds": 101.349,
+            "managedBytes": 18792
+          },
+          "rust": {
+            "microseconds": 23.369,
+            "managedBytes": 6584
+          }
+        },
+        "flat-64": {
+          "release": {
+            "microseconds": 273.957,
+            "managedBytes": 86760
+          },
+          "rust": {
+            "microseconds": 109.43,
+            "managedBytes": 25600
+          }
+        },
+        "tree-64": {
+          "release": {
+            "microseconds": 549.583,
+            "managedBytes": 140512
+          },
+          "rust": {
+            "microseconds": 141.993,
+            "managedBytes": 41864
+          }
+        },
+        "chain-64": {
+          "release": {
+            "microseconds": 1024.53,
+            "managedBytes": 249304
+          },
+          "rust": {
+            "microseconds": 667.41,
+            "managedBytes": 41864
+          }
+        },
+        "missing-64": {
+          "release": {
+            "microseconds": 978.723,
+            "managedBytes": 160368
+          },
+          "rust": {
+            "microseconds": 162.25,
+            "managedBytes": 61504
+          }
+        },
+        "flat-512": {
+          "release": {
+            "microseconds": 5995.025,
+            "managedBytes": 729088
+          },
+          "rust": {
+            "microseconds": 514.175,
+            "managedBytes": 230552
+          }
+        },
+        "tree-512": {
+          "release": {
+            "microseconds": 9917.025,
+            "managedBytes": 1179568
+          },
+          "rust": {
+            "microseconds": 1319,
+            "managedBytes": 370912
+          }
+        },
+        "chain-512": {
+          "release": {
+            "microseconds": 32772.725,
+            "managedBytes": 8560336
+          },
+          "rust": {
+            "microseconds": 1136.875,
+            "managedBytes": 370912
+          }
+        },
+        "chain-1024": {
+          "release": {
+            "microseconds": 109702.85,
+            "managedBytes": 31309576
+          },
+          "rust": {
+            "microseconds": 14726.85,
+            "managedBytes": 764784
+          }
+        }
+      },
+      "defaultJitFirstCallMedians": {
+        "flat-0": {
+          "release": {
+            "us": 52054.9,
+            "managedBytes": 8936
+          },
+          "rust": {
+            "us": 29476.7,
+            "managedBytes": 728
+          }
+        },
+        "flat-1": {
+          "release": {
+            "us": 215156.5,
+            "managedBytes": 11168
+          },
+          "rust": {
+            "us": 48878.9,
+            "managedBytes": 1360
+          }
+        },
+        "flat-2": {
+          "release": {
+            "us": 131565.8,
+            "managedBytes": 12176
+          },
+          "rust": {
+            "us": 62705,
+            "managedBytes": 9176
+          }
+        },
+        "tree-8": {
+          "release": {
+            "us": 215373.8,
+            "managedBytes": 26656
+          },
+          "rust": {
+            "us": 84130.7,
+            "managedBytes": 14400
+          }
+        },
+        "chain-64": {
+          "release": {
+            "us": 253933.5,
+            "managedBytes": 257168
+          },
+          "rust": {
+            "us": 81295,
+            "managedBytes": 49680
+          }
+        }
+      }
+    }
+  },
+  "independent": {
+    "packetDigest": "d6fc55152a56ce59f583627e4a35b6ebdd3470fff6d47b32897a84aab269cacf",
+    "packetFileSha256": "72505eb6a600e6c49f29b2921a19cde30547a2d7d737624b7049caa154e97130",
+    "reviewSha256": "34c7e93b53a3324621f4e6813adc984528623c0c7dd1a6ac77b6f9eb9c921280",
+    "candidate": "39babc83ec2b026731d381b6c17731749e81ff9c",
+    "sourceEquivalence": "6a2ced91e5870c310901c49c97f9d8ee2228adea",
+    "coverage": [
+      "550 deterministic ordinal graph/cycle cohorts",
+      "64 collections changing on second enumeration",
+      "six boundary/deep chains up to 2047 input items",
+      "all public SessionActivity properties including unpaired UTF-16 and original offsets; object reference positions retained",
+      "local and remote parent collisions, GUID case, duplicate input/result IDs, multiple context: prefix levels"
+    ],
+    "architectures": {
+      "arm64": {
+        "cases": 620,
+        "returns": 588,
+        "matching_exceptions": 32,
+        "display_rows_observed": 10098,
+        "complete_output_sha256": "80a0b556e36165d9de3fdf6229d47aa4fda21d95d5ce2eb190e1a1d79e2416fe",
+        "native_loaded": true
+      },
+      "x64": {
+        "cases": 620,
+        "returns": 588,
+        "matching_exceptions": 32,
+        "display_rows_observed": 10098,
+        "complete_output_sha256": "80a0b556e36165d9de3fdf6229d47aa4fda21d95d5ce2eb190e1a1d79e2416fe",
+        "native_loaded": true
+      }
+    }
+  }
+}
