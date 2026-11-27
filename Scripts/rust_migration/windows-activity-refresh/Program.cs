@@ -21,13 +21,13 @@ if (args[0] == "bench" || args.Contains("active"))
         new("one", "codex", "One", "busy", stamp), new("two", "claude", "Two", "idle", stamp)
     }).Count != 2) throw new InvalidOperationException("Session tree precondition failed.");
 }
-if (args is ["sequence", var size, var shape, _])
+if (args is ["sequence", var sequenceSize, var sequenceShape, _])
 {
-    int count = int.Parse(size);
+    int count = int.Parse(sequenceSize);
     var stamp = DateTimeOffset.UnixEpoch;
     var frames = Enumerable.Range(0, 3).Select(stage => Enumerable.Range(0, count).Select(i =>
         new SessionActivity("session-" + i, i % 2 == 0 ? "claude" : "codex", "item-" + i,
-            shape == "steady" || stage == 0 ? "busy" : stage == 1 ? "waiting" : "idle", stamp)
+            sequenceShape == "steady" || stage == 0 ? "busy" : stage == 1 ? "waiting" : "idle", stamp)
         { ProcessId = 30 + i, ParentThreadId = i > 1 && i % 4 == 0 ? "session-0" : null }).ToArray()).ToArray();
     var store = new Store(Array.Empty<SessionActivity>(), OptionsFor(3));
     int changed = 0;
