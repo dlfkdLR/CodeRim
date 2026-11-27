@@ -79,6 +79,8 @@ def main():
                         expected_load = side == "rust" and (mode == "warm" or "active" in args_)
                         if row["bridgeBefore"] != expected_load or row["bridgeAfter"] != expected_load:
                             raise ValueError(("Unexpected accounting library state", side, mode, args_, row))
+                        if row["usageAssemblyBefore"] != row["usageAssemblyAfter"]:
+                            raise ValueError(("Update check loaded the usage assembly", side, mode, args_, row))
                         shape = mode + ("/active/" if "active" in args_ else "/") + row["name"]
                         results = samples.setdefault(shape, {})
                         results.setdefault(side, []).append(row)

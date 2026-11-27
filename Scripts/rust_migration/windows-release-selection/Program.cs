@@ -53,17 +53,23 @@ foreach (var (name, pages) in workloads.Where(p => args.Length == 1 || args[1] =
     var cold = args[0] == "cold";
     if (!cold) for (var i = 0; i < 5; i++) Run(name, pages);
     var loops = cold ? 1 : name == "nearLimit" ? 14 : 50;
-    var bridgeBefore = BridgeLoaded();
+    var usageBefore = LoadedUsageAssembly();
+    var bridgeBefore = BridgeLoaded(usageBefore);
     var before = GC.GetAllocatedBytesForCurrentThread();
     var start = Stopwatch.GetTimestamp();
     for (var i = 0; i < loops; i++) Run(name, pages);
     var us = Stopwatch.GetElapsedTime(start).TotalMicroseconds / loops;
     var managedBytes = (GC.GetAllocatedBytesForCurrentThread() - before) / loops;
-    Console.WriteLine(JsonSerializer.Serialize(new { name, us, managedBytes, bridgeBefore, bridgeAfter = BridgeLoaded(),
+    var usageAfter = LoadedUsageAssembly();
+    Console.WriteLine(JsonSerializer.Serialize(new { name, us, managedBytes, bridgeBefore, bridgeAfter = BridgeLoaded(usageAfter),
+        usageAssemblyBefore = usageBefore != null, usageAssemblyAfter = usageAfter != null,
         metadataBytes = pages.Sum(p => p.Length) }, options));
 }
 
-static bool BridgeLoaded() => (bool?)typeof(CodeRim.Core.Domain.TokenUsage).Assembly.GetType("CodeRim.Core.Domain.RustAccountingLoadState")?
+static Assembly? LoadedUsageAssembly() =>
+    AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(assembly => assembly.GetName().Name == "CodeRim.UsageCore");
+
+static bool BridgeLoaded(Assembly? assembly) => (bool?)assembly?.GetType("CodeRim.Core.Domain.RustAccountingLoadState")?
     .GetField("IsLoaded", BindingFlags.Static | BindingFlags.NonPublic)?.GetValue(null) ?? false;
 
 static byte[] Page(int start, int count, int noteSize, bool mixed)
