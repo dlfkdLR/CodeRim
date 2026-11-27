@@ -98,6 +98,7 @@ impl J {
     pub fn float(&self) -> Option<f64> {
         match self {
             J::Float(n) => Some(*n),
+            J::Unsigned(n) => Some(*n as f64),
             x => Some(x.int()? as f64),
         }
     }
@@ -171,18 +172,7 @@ impl J {
             J::Bool(v) => out.push_str(if *v { "true" } else { "false" }),
             J::Int(v) => write!(out, "{v}").ok()?,
             J::Unsigned(v) => write!(out, "{v}").ok()?,
-            J::Float(v) => {
-                if !v.is_finite() || (*v != 0.0 && !(0.0001..1e15).contains(&v.abs())) {
-                    return None;
-                }
-                if v.fract() == 0.0 {
-                    write!(out, "{v:.0}").ok()?;
-                } else {
-                    // System.Text.Json chooses the even final digit when two shortest
-                    // decimals are equally close. Rust Display rounds these ties up.
-                    out.push_str(&serde_json::to_string(v).ok()?);
-                }
-            }
+            J::Float(v) => write_double(out, *v)?,
             J::Str(s) => quoted(out, s),
             J::Date(s) => {
                 out.push('"');
@@ -223,6 +213,61 @@ impl J {
         Some(())
     }
 }
+// System.Text.Json uses the shortest round-trip digits and switches to
+// scientific notation below 1e-4 or from 1e17. The exponent includes a sign
+// and at least two digits. Numeric fields remain JSON numbers in every case.
+fn write_double(out: &mut String, value: f64) -> Option<()> {
+    if !value.is_finite() {
+        return None;
+    }
+    let magnitude = value.abs();
+    if magnitude < 1e15 && value.fract() == 0.0 {
+        return write!(out, "{value:.0}").ok();
+    }
+    let shortest = serde_json::to_string(&value).ok()?;
+    if (0.0001..1e15).contains(&magnitude) {
+        out.push_str(&shortest);
+        return Some(());
+    }
+
+    let unsigned = shortest.strip_prefix('-').unwrap_or(&shortest);
+    let (mantissa, power) = match unsigned.split_once('e') {
+        Some((mantissa, power)) => (mantissa, power.parse::<i32>().ok()?),
+        None => (unsigned, 0),
+    };
+    let decimal = mantissa.find('.').unwrap_or(mantissa.len());
+    let digits = mantissa.replace('.', "");
+    let significant = digits.trim_start_matches('0');
+    let exponent = power + decimal as i32 - (digits.len() - significant.len()) as i32 - 1;
+    let significant = significant.trim_end_matches('0');
+    if value.is_sign_negative() {
+        out.push('-');
+    }
+    if !(-4..17).contains(&exponent) {
+        let (first, rest) = significant.split_at(1);
+        out.push_str(first);
+        if !rest.is_empty() {
+            out.push('.');
+            out.push_str(rest);
+        }
+        write!(out, "E{exponent:+03}").ok()?;
+    } else {
+        // Small fixed values returned above. This case covers [1e15, 1e17).
+        let decimal = (exponent + 1) as usize;
+        if let Some(fraction) = significant.get(decimal..) {
+            out.push_str(&significant[..decimal]);
+            if !fraction.is_empty() {
+                out.push('.');
+                out.push_str(fraction);
+            }
+        } else {
+            out.push_str(significant);
+            out.extend(std::iter::repeat_n('0', decimal - significant.len()));
+        }
+    }
+    Some(())
+}
+
 fn quoted(out: &mut String, s: &str) {
     out.push('"');
     for c in s.chars() {
