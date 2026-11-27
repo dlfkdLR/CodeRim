@@ -5,6 +5,19 @@ import { defaultPreferences, HTTPError } from './model.mjs';
 // to pair again; one left unused for a year expires.
 const TOKEN_LIFETIME = 365 * 86400;
 const RENEW_WITHIN = 30 * 86400;
+// Both cases need the original row-by-row parsing and expiry checks after a restore.
+// Keep the predicate identical in the partial index and its lookup.
+const needsDeviceValidation = "CASE WHEN typeof(data)='text' AND json_valid(data) THEN json_type(data)='null' ELSE 1 END";
+function conflictsWithPairing(data, row) {
+  return data != null && ((Object.hasOwn(data, 'id') && data.id !== row.id)
+    || (Object.hasOwn(data, 'session') && data.session !== row.session));
+}
+
+function pairedData(row, writingSession) {
+  const data = JSON.parse(row.data);
+  if (row.session === writingSession && conflictsWithPairing(data, row)) throw new HTTPError(401, 'pairing_required');
+  return data;
+}
 
 export class Store {
   /** @param sql `durableSQL(storage)` in the Worker, `nodeSQL()` in tests. */
@@ -21,6 +34,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS limits (key TEXT PRIMARY KEY, count INTEGER NOT NULL, until REAL NOT NULL);
       CREATE INDEX IF NOT EXISTS sessions_owner ON sessions(owner);
       CREATE INDEX IF NOT EXISTS devices_owner ON devices(owner);
+      CREATE INDEX IF NOT EXISTS devices_unreadable ON devices(owner) WHERE ${needsDeviceValidation};
       CREATE INDEX IF NOT EXISTS activities_owner ON activities(owner);
       CREATE INDEX IF NOT EXISTS starters_owner ON starters(owner);`);
     // Each pass reads one account's rows through these indexes, so a pass over every account reads in
@@ -49,22 +63,40 @@ export class Store {
     if (!session || session.expires <= now) throw new HTTPError(401, 'sign_in_required');
     if (role && session.role !== role) throw new HTTPError(403, 'wrong_device_role');
     if (session.expires - now < RENEW_WITHIN) {
+      if (session.role === 'desktop') this.checkDevicePairing(session);
       session.expires = now + TOKEN_LIFETIME;
       this.run('UPDATE sessions SET expires=? WHERE hash=?', session.expires, session.hash);
     }
     return session;
   }
-  devices(owner, now) {
+  devices(owner, now, writingSession) {
     return this.sql.all('SELECT d.*, s.expires FROM devices d LEFT JOIN sessions s ON d.session=s.hash WHERE d.owner=? ORDER BY d.rowid', owner)
-      .map(row => { const data = JSON.parse(row.data); return { id: row.id, session: row.session, ...data,
+      .map(row => { const data = pairedData(row, writingSession); return { ...data, id: row.id, session: row.session,
         receivedAt: row.expires > now ? data.receivedAt : 0 }; });
   }
-  reportingDevice(owner, session) {
-    // The desktop was authenticated synchronously for this request.
-    const row = this.one(`SELECT id, data, EXISTS(
-        SELECT 1 FROM devices other WHERE other.owner=d.owner AND other.session<>d.session
+  checkDevicePairing(session) {
+    const row = this.one('SELECT id, session, data FROM devices WHERE owner=? AND session=?', session.owner, session.hash);
+    if (!row) return;
+    let data;
+    try { data = JSON.parse(row.data); }
+    catch { return; } // Preserve the existing request-specific handling of unreadable payloads.
+    if (conflictsWithPairing(data, row)) throw new HTTPError(401, 'pairing_required');
+  }
+  reportingDevice(owner, session, now) {
+    // The desktop was just authenticated. For a single computer the paired row
+    // is the only payload to validate. With siblings the partial index detects damaged rows.
+    const row = this.one(`SELECT id, session, data, EXISTS(
+        SELECT 1 FROM devices sibling WHERE sibling.owner=d.owner AND sibling.session<>d.session
       ) AS hasSiblings FROM devices d WHERE owner=? AND session=?`, owner, session);
-    return row && { device: { ...JSON.parse(row.data), id: row.id, session }, hasSiblings: Boolean(row.hasSiblings) };
+    const needsValidation = Boolean(row?.hasSiblings && this.one(
+      `SELECT 1 FROM devices WHERE owner=? AND ${needsDeviceValidation} LIMIT 1`, owner));
+    // A missing row or a damaged sibling used to load all rows in their stored
+    // order. Preserve any parsing error before changing the reporting device.
+    if (!row || needsValidation) this.devices(owner, now, session);
+    if (!row) return undefined;
+    const data = pairedData(row, session);
+    return { device: { ...data, id: row.id, session, receivedAt: data.receivedAt },
+      hasSiblings: Boolean(row.hasSiblings), needsValidation };
   }
   otherDeviceVersions(owner, session) {
     // Ordinary rows have a single integer sequence. For unusual or duplicate keys,
@@ -161,7 +193,18 @@ export class Store {
     return this.one('SELECT MIN(expires) AS expires FROM (SELECT expires FROM pairs UNION ALL SELECT expires FROM sessions)').expires ?? Infinity;
   }
   /** Computers that can still connect: the pairing limit counts only these. */
-  activeDeviceCount(owner, now) {
-    return this.one('SELECT COUNT(*) AS n FROM devices d JOIN sessions s ON d.session=s.hash WHERE d.owner=? AND s.expires>?', owner, now).n;
+  hasPairingSlot(owner, now, limit) {
+    const active = 'FROM devices d JOIN sessions s ON d.session=s.hash WHERE d.owner=? AND s.expires>?';
+    if (this.one('SELECT COUNT(*) AS n ' + active, owner, now).n < limit) return true;
+    // At the cap, a restored identity conflict must leave room to pair again.
+    // The old row and its usage history stay available until explicitly removed.
+    const rows = this.sql.all('SELECT d.id, d.session, d.data ' + active, owner, now);
+    let usable = 0;
+    for (const row of rows) {
+      try { if (conflictsWithPairing(JSON.parse(row.data), row)) continue; }
+      catch { /* An unreadable payload still occupies its slot. */ }
+      if (++usable >= limit) return false;
+    }
+    return true;
   }
 }

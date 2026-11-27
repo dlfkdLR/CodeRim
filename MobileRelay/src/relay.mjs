@@ -196,7 +196,7 @@ export class Relay {
       const pair = this.pair(body, now);
       if (pair.owner) throw new HTTPError(409, 'pairing_used');
       // Expired computers must pair again anyway, so they never hold a place under the limit.
-      requireValue(store.activeDeviceCount(session.owner, now) < 16, 'device_limit');
+      requireValue(store.hasPairingSlot(session.owner, now, 16), 'device_limit');
       const { label } = JSON.parse(pair.data);
       const result = store.transaction(() => {
         const token = store.issue(session.owner, 'desktop', now), deviceID = secret(), hash = digest(token.token);
@@ -211,6 +211,7 @@ export class Relay {
       return result;
     }
     if (method === 'DELETE' && path === '/v1/session') {
+      if (session.role === 'desktop') store.checkDevicePairing(session);
       // Mark endings durably before revoking access; tick retries APNs failures.
       this.endActivities(store.activities(session.owner).filter(a => a.session === session.hash));
       store.revoke(session.hash);
@@ -275,7 +276,7 @@ export class Relay {
     if (method === 'PUT' && path === '/v1/device') {
       // Only the paired computer can rename its own record; a phone cannot rename another computer.
       requireValue(typeof body?.name === 'string' && body.name.trim().length > 0);
-      const devices = store.devices(session.owner, now);
+      const devices = store.devices(session.owner, now, session.hash);
       const device = devices.find(d => d.session === session.hash);
       if (!device) throw new HTTPError(401, 'pairing_required');
       const label = deviceLabel({ platform: device.platform, name: body.name });
@@ -290,9 +291,9 @@ export class Relay {
       return { ok: true };
     }
     if (method === 'POST' && path === '/v1/snapshot') {
-      const reporting = store.reportingDevice(session.owner, session.hash);
+      const reporting = store.reportingDevice(session.owner, session.hash, now);
       if (!reporting) throw new HTTPError(401, 'pairing_required');
-      const { device, hasSiblings } = reporting;
+      const { device, hasSiblings, needsValidation } = reporting;
       const next = sanitizeSnapshot(body, now);
       // The computer has its token: the pairing that handed it over is finished.
       if (!device.receivedAt) {
@@ -311,9 +312,13 @@ export class Relay {
       if (plan & REPORT_CONTENT) {
         const previousProviders = device.snapshot?.providers ?? [];
         // Written with the content it numbers, so it costs no extra row write.
-        const versions = this.snapshotRead && hasSiblings
-          ? [device, ...store.otherDeviceVersions(session.owner, session.hash)] : [device];
-        device.seq = this.nextDeviceSequence(session.owner, versions, user, now);
+        if (needsValidation) {
+          device.seq = this.contentSequence(session.owner) + 1;
+        } else {
+          const versions = this.snapshotRead && hasSiblings
+            ? [device, ...store.otherDeviceVersions(session.owner, session.hash)] : [device];
+          device.seq = this.nextDeviceSequence(session.owner, versions, user, now);
+        }
         device.snapshot = next; device.receivedAt = now; device.onlineWindow = onlineWindow;
         store.saveDevice(session.owner, device);
         // The new report has already been sanitized: both catalog fields are strings.
