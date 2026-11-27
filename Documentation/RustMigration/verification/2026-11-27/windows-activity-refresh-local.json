@@ -1,0 +1,1419 @@
+{
+  "candidate": "6a639945b92738b04f8c1958551092d8330e0ed2",
+  "entryPoint": "Windows/src/CodeRim.Windows/ViewModels/DashboardStore.cs UpdateSessionActivity",
+  "driver": "Scripts/rust_migration/windows-activity-refresh/check.py",
+  "environment": "macOS .NET 10.0.12. The production update method ran with synthetic settings and notification/chime observers. First-call samples run in fresh processes with the default JIT. Warm numbers include an initialized session tree. All times are microseconds per call. Allocations are calling-thread managed bytes.",
+  "platforms": {
+    "arm64": {
+      "sourceSha256": "5d080a884031dd481cb2918f1199163561c6bfdb7672cf65bec905cb1ae587c4",
+      "runtime": {
+        "os": "macOS 26.6.2",
+        "isa": "Arm64",
+        "framework": ".NET 10.0.12"
+      },
+      "inputs": {
+        "public": {
+          "revision": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+          "methodSha256": "8c0087ac4bca2787ece639998df32fbde61ceeedac0282b66f18baa3edafc399",
+          "coreSha256": "d12120c72c175eb797ce3ea0ff0ca9fbcadffb03b0d4bd2842dbce8f0ee921ea"
+        },
+        "previous": {
+          "revision": "8060a48cf322831f2b9a3d8ffabf9459117863a9",
+          "methodSha256": "8c0087ac4bca2787ece639998df32fbde61ceeedac0282b66f18baa3edafc399",
+          "coreSha256": "be213542dd26aeb28621fc96c75e42e5f44967c98849af59f6424651bc73a9de"
+        },
+        "rust": {
+          "revision": "6a639945b92738b04f8c1958551092d8330e0ed2",
+          "methodSha256": "435f2bb5dc5dcedd32e4fb6517ed8378711a2857907387bd02e4c98b0c5426a9",
+          "coreSha256": "fcd5fc2189af22d472a197196162e52203bac4aa10c5914e4668f7f42d849cda"
+        }
+      },
+      "librarySha256": "eede63d46a828aabf1b68113a643e7a126c7d7ff8d68bbec6ebfb2a1704f8022",
+      "contract": {
+        "cases": 1486,
+        "digest": "5b102c9a25e7d55d1b509896f92d869a4ddc263ed7d5e25acb6a2f93ef5fb909",
+        "managedErrors": 186,
+        "rows": 18765,
+        "sounds": 184,
+        "attentions": 355,
+        "changed": 974
+      },
+      "firstCallMedian": {
+        "0/unchanged": {
+          "public": {
+            "microseconds": 1524.2,
+            "managedBytes": 464,
+            "samples": 5
+          },
+          "previous": {
+            "microseconds": 2114,
+            "managedBytes": 464,
+            "samples": 5
+          },
+          "rust": {
+            "microseconds": 421.6,
+            "managedBytes": 112,
+            "samples": 5
+          }
+        },
+        "1/startup": {
+          "public": {
+            "microseconds": 1687.9,
+            "managedBytes": 616,
+            "samples": 5
+          },
+          "previous": {
+            "microseconds": 1607.1,
+            "managedBytes": 616,
+            "samples": 5
+          },
+          "rust": {
+            "microseconds": 419.5,
+            "managedBytes": 120,
+            "samples": 5
+          }
+        },
+        "8/startup": {
+          "public": {
+            "microseconds": 1732.7,
+            "managedBytes": 1960,
+            "samples": 5
+          },
+          "previous": {
+            "microseconds": 1834.8,
+            "managedBytes": 1960,
+            "samples": 5
+          },
+          "rust": {
+            "microseconds": 521.3,
+            "managedBytes": 176,
+            "samples": 5
+          }
+        },
+        "1/unchanged": {
+          "public": {
+            "microseconds": 3117,
+            "managedBytes": 1688,
+            "samples": 5
+          },
+          "previous": {
+            "microseconds": 3429.2,
+            "managedBytes": 1688,
+            "samples": 5
+          },
+          "rust": {
+            "microseconds": 4969.2,
+            "managedBytes": 2000,
+            "samples": 5
+          }
+        },
+        "8/completed": {
+          "public": {
+            "microseconds": 3231.8,
+            "managedBytes": 1680,
+            "samples": 5
+          },
+          "previous": {
+            "microseconds": 4180.9,
+            "managedBytes": 1680,
+            "samples": 5
+          },
+          "rust": {
+            "microseconds": 4072.6,
+            "managedBytes": 1992,
+            "samples": 5
+          }
+        },
+        "64/reordered": {
+          "public": {
+            "microseconds": 2797.7,
+            "managedBytes": 17408,
+            "samples": 5
+          },
+          "previous": {
+            "microseconds": 2687.8,
+            "managedBytes": 17408,
+            "samples": 5
+          },
+          "rust": {
+            "microseconds": 3666.8,
+            "managedBytes": 17720,
+            "samples": 5
+          }
+        },
+        "256/completed": {
+          "public": {
+            "microseconds": 3452.7,
+            "managedBytes": 25536,
+            "samples": 5
+          },
+          "previous": {
+            "microseconds": 3138.7,
+            "managedBytes": 25536,
+            "samples": 5
+          },
+          "rust": {
+            "microseconds": 3947.5,
+            "managedBytes": 25848,
+            "samples": 5
+          }
+        },
+        "1024/completed": {
+          "public": {
+            "microseconds": 13988.4,
+            "managedBytes": 99216,
+            "samples": 5
+          },
+          "previous": {
+            "microseconds": 14274.3,
+            "managedBytes": 99216,
+            "samples": 5
+          },
+          "rust": {
+            "microseconds": 9870,
+            "managedBytes": 210784,
+            "samples": 5
+          }
+        }
+      },
+      "warmMedians": [
+        {
+          "size": 0,
+          "shape": "unchanged",
+          "public": {
+            "us": 0.24916666666666668,
+            "bytes": 352
+          },
+          "previous": {
+            "us": 0.2678333333333333,
+            "bytes": 352
+          },
+          "rust": {
+            "us": 0.011833333333333333,
+            "bytes": 0
+          }
+        },
+        {
+          "size": 0,
+          "shape": "reloaded",
+          "public": {
+            "us": 0.2608333333333333,
+            "bytes": 352
+          },
+          "previous": {
+            "us": 0.28150000000000003,
+            "bytes": 352
+          },
+          "rust": {
+            "us": 0.0115,
+            "bytes": 0
+          }
+        },
+        {
+          "size": 0,
+          "shape": "reordered",
+          "public": {
+            "us": 0.30483333333333335,
+            "bytes": 352
+          },
+          "previous": {
+            "us": 0.24783333333333332,
+            "bytes": 352
+          },
+          "rust": {
+            "us": 0.011666666666666667,
+            "bytes": 0
+          }
+        },
+        {
+          "size": 0,
+          "shape": "completed",
+          "public": {
+            "us": 0.2545,
+            "bytes": 352
+          },
+          "previous": {
+            "us": 0.249,
+            "bytes": 352
+          },
+          "rust": {
+            "us": 0.011166666666666667,
+            "bytes": 0
+          }
+        },
+        {
+          "size": 1,
+          "shape": "unchanged",
+          "public": {
+            "us": 0.4191666666666667,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.407,
+            "bytes": 760
+          },
+          "rust": {
+            "us": 0.2655,
+            "bytes": 248
+          }
+        },
+        {
+          "size": 1,
+          "shape": "reloaded",
+          "public": {
+            "us": 0.5385000000000001,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.5461666666666667,
+            "bytes": 760
+          },
+          "rust": {
+            "us": 0.26449999999999996,
+            "bytes": 248
+          }
+        },
+        {
+          "size": 1,
+          "shape": "reordered",
+          "public": {
+            "us": 0.403,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.5165,
+            "bytes": 760
+          },
+          "rust": {
+            "us": 0.24266666666666667,
+            "bytes": 248
+          }
+        },
+        {
+          "size": 1,
+          "shape": "completed",
+          "public": {
+            "us": 0.46416666666666667,
+            "bytes": 680
+          },
+          "previous": {
+            "us": 0.43633333333333335,
+            "bytes": 680
+          },
+          "rust": {
+            "us": 0.20166666666666666,
+            "bytes": 104
+          }
+        },
+        {
+          "size": 2,
+          "shape": "unchanged",
+          "public": {
+            "us": 0.5098333333333332,
+            "bytes": 952
+          },
+          "previous": {
+            "us": 0.5780000000000001,
+            "bytes": 952
+          },
+          "rust": {
+            "us": 0.29133333333333333,
+            "bytes": 256
+          }
+        },
+        {
+          "size": 2,
+          "shape": "reloaded",
+          "public": {
+            "us": 0.5108333333333334,
+            "bytes": 952
+          },
+          "previous": {
+            "us": 0.5786666666666667,
+            "bytes": 952
+          },
+          "rust": {
+            "us": 0.31116666666666665,
+            "bytes": 256
+          }
+        },
+        {
+          "size": 2,
+          "shape": "reordered",
+          "public": {
+            "us": 0.5373333333333333,
+            "bytes": 952
+          },
+          "previous": {
+            "us": 0.5445,
+            "bytes": 952
+          },
+          "rust": {
+            "us": 0.295,
+            "bytes": 256
+          }
+        },
+        {
+          "size": 2,
+          "shape": "completed",
+          "public": {
+            "us": 0.495,
+            "bytes": 912
+          },
+          "previous": {
+            "us": 0.6075,
+            "bytes": 912
+          },
+          "rust": {
+            "us": 0.2546666666666667,
+            "bytes": 112
+          }
+        },
+        {
+          "size": 8,
+          "shape": "unchanged",
+          "public": {
+            "us": 1.3383333333333334,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 1.5373333333333332,
+            "bytes": 2536
+          },
+          "rust": {
+            "us": 0.7231666666666666,
+            "bytes": 736
+          }
+        },
+        {
+          "size": 8,
+          "shape": "reloaded",
+          "public": {
+            "us": 1.3279999999999998,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 1.5296666666666665,
+            "bytes": 2536
+          },
+          "rust": {
+            "us": 0.7996666666666666,
+            "bytes": 736
+          }
+        },
+        {
+          "size": 8,
+          "shape": "reordered",
+          "public": {
+            "us": 3.687833333333333,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 3.9868333333333332,
+            "bytes": 2536
+          },
+          "rust": {
+            "us": 0.7545,
+            "bytes": 736
+          }
+        },
+        {
+          "size": 8,
+          "shape": "completed",
+          "public": {
+            "us": 0.984,
+            "bytes": 1776
+          },
+          "previous": {
+            "us": 0.9378333333333334,
+            "bytes": 1776
+          },
+          "rust": {
+            "us": 0.6768333333333334,
+            "bytes": 160
+          }
+        },
+        {
+          "size": 32,
+          "shape": "unchanged",
+          "public": {
+            "us": 5.564,
+            "bytes": 8872
+          },
+          "previous": {
+            "us": 5.135,
+            "bytes": 8872
+          },
+          "rust": {
+            "us": 3.859,
+            "bytes": 2656
+          }
+        },
+        {
+          "size": 32,
+          "shape": "reloaded",
+          "public": {
+            "us": 5.898,
+            "bytes": 8872
+          },
+          "previous": {
+            "us": 6.16,
+            "bytes": 8872
+          },
+          "rust": {
+            "us": 4.152,
+            "bytes": 2656
+          }
+        },
+        {
+          "size": 32,
+          "shape": "reordered",
+          "public": {
+            "us": 5.4639999999999995,
+            "bytes": 8872
+          },
+          "previous": {
+            "us": 5.224,
+            "bytes": 8872
+          },
+          "rust": {
+            "us": 5.269,
+            "bytes": 2656
+          }
+        },
+        {
+          "size": 32,
+          "shape": "completed",
+          "public": {
+            "us": 6.051,
+            "bytes": 5256
+          },
+          "previous": {
+            "us": 5.617999999999999,
+            "bytes": 5256
+          },
+          "rust": {
+            "us": 5.0889999999999995,
+            "bytes": 352
+          }
+        },
+        {
+          "size": 64,
+          "shape": "unchanged",
+          "public": {
+            "us": 14.799000000000001,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 19.029,
+            "bytes": 17320
+          },
+          "rust": {
+            "us": 11.015,
+            "bytes": 5216
+          }
+        },
+        {
+          "size": 64,
+          "shape": "reloaded",
+          "public": {
+            "us": 24.416999999999998,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 19.788,
+            "bytes": 17320
+          },
+          "rust": {
+            "us": 10.052999999999999,
+            "bytes": 5216
+          }
+        },
+        {
+          "size": 64,
+          "shape": "reordered",
+          "public": {
+            "us": 15.918,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 17.528,
+            "bytes": 17320
+          },
+          "rust": {
+            "us": 14.107000000000001,
+            "bytes": 5216
+          }
+        },
+        {
+          "size": 64,
+          "shape": "completed",
+          "public": {
+            "us": 18.958,
+            "bytes": 9840
+          },
+          "previous": {
+            "us": 22.776999999999997,
+            "bytes": 9840
+          },
+          "rust": {
+            "us": 13.77,
+            "bytes": 608
+          }
+        },
+        {
+          "size": 256,
+          "shape": "unchanged",
+          "public": {
+            "us": 183.57500000000002,
+            "bytes": 68008
+          },
+          "previous": {
+            "us": 183.04999999999998,
+            "bytes": 68008
+          },
+          "rust": {
+            "us": 36.733333333333334,
+            "bytes": 20576
+          }
+        },
+        {
+          "size": 256,
+          "shape": "reloaded",
+          "public": {
+            "us": 215.42499999999998,
+            "bytes": 68008
+          },
+          "previous": {
+            "us": 208.71666666666667,
+            "bytes": 68008
+          },
+          "rust": {
+            "us": 36.38333333333333,
+            "bytes": 20576
+          }
+        },
+        {
+          "size": 256,
+          "shape": "reordered",
+          "public": {
+            "us": 205.1833333333333,
+            "bytes": 68008
+          },
+          "previous": {
+            "us": 190.6833333333333,
+            "bytes": 68008
+          },
+          "rust": {
+            "us": 70.05,
+            "bytes": 20576
+          }
+        },
+        {
+          "size": 256,
+          "shape": "completed",
+          "public": {
+            "us": 303.59999999999997,
+            "bytes": 37512
+          },
+          "previous": {
+            "us": 269,
+            "bytes": 37512
+          },
+          "rust": {
+            "us": 64.02499999999999,
+            "bytes": 2144
+          }
+        },
+        {
+          "size": 1024,
+          "shape": "unchanged",
+          "public": {
+            "us": 3462.7,
+            "bytes": 270760
+          },
+          "previous": {
+            "us": 3058.275,
+            "bytes": 270760
+          },
+          "rust": {
+            "us": 175.8,
+            "bytes": 82016
+          }
+        },
+        {
+          "size": 1024,
+          "shape": "reloaded",
+          "public": {
+            "us": 3211.1,
+            "bytes": 270760
+          },
+          "previous": {
+            "us": 3099.7,
+            "bytes": 270760
+          },
+          "rust": {
+            "us": 175.675,
+            "bytes": 82016
+          }
+        },
+        {
+          "size": 1024,
+          "shape": "reordered",
+          "public": {
+            "us": 3301.8,
+            "bytes": 270760
+          },
+          "previous": {
+            "us": 3135.05,
+            "bytes": 270760
+          },
+          "rust": {
+            "us": 225.55,
+            "bytes": 82016
+          }
+        },
+        {
+          "size": 1024,
+          "shape": "completed",
+          "public": {
+            "us": 4737.675,
+            "bytes": 148080
+          },
+          "previous": {
+            "us": 4510.75,
+            "bytes": 148080
+          },
+          "rust": {
+            "us": 197.275,
+            "bytes": 8288
+          }
+        }
+      ]
+    },
+    "rosetta": {
+      "sourceSha256": "65452afaf92c72c7e64061cd59c34f9ceb795ec6568b6e0dc950e1758a1f0b4a",
+      "runtime": {
+        "os": "macOS 26.6.2",
+        "isa": "X64",
+        "framework": ".NET 10.0.12"
+      },
+      "inputs": {
+        "public": {
+          "revision": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+          "methodSha256": "8c0087ac4bca2787ece639998df32fbde61ceeedac0282b66f18baa3edafc399",
+          "coreSha256": "a75cc799983c075c86cfbe2849bf68c553489b53bff7438b3f656301e86b0445"
+        },
+        "previous": {
+          "revision": "8060a48cf322831f2b9a3d8ffabf9459117863a9",
+          "methodSha256": "8c0087ac4bca2787ece639998df32fbde61ceeedac0282b66f18baa3edafc399",
+          "coreSha256": "900b3c7eb6d10d9d2a26d99674e0f46041c7f5b91f4108aa834fe7de4d9bf171"
+        },
+        "rust": {
+          "revision": "6a639945b92738b04f8c1958551092d8330e0ed2",
+          "methodSha256": "435f2bb5dc5dcedd32e4fb6517ed8378711a2857907387bd02e4c98b0c5426a9",
+          "coreSha256": "1a7b25d2577e9e0fdf72fa60903ff461dba7525a856803f1b785edc9ae0d4bc1"
+        }
+      },
+      "librarySha256": "9477fdb91ad3357f016acde6dbeafe1cadc57f0b5fc75ea9fc799a4668630999",
+      "contract": {
+        "cases": 1486,
+        "digest": "5b102c9a25e7d55d1b509896f92d869a4ddc263ed7d5e25acb6a2f93ef5fb909",
+        "managedErrors": 186,
+        "rows": 18765,
+        "sounds": 184,
+        "attentions": 355,
+        "changed": 974
+      },
+      "firstCallMedian": {
+        "0/unchanged": {
+          "public": {
+            "microseconds": 5369.8,
+            "managedBytes": 464,
+            "samples": 5
+          },
+          "previous": {
+            "microseconds": 5306.1,
+            "managedBytes": 464,
+            "samples": 5
+          },
+          "rust": {
+            "microseconds": 2784.5,
+            "managedBytes": 112,
+            "samples": 5
+          }
+        },
+        "1/startup": {
+          "public": {
+            "microseconds": 6128.6,
+            "managedBytes": 616,
+            "samples": 5
+          },
+          "previous": {
+            "microseconds": 5906.7,
+            "managedBytes": 616,
+            "samples": 5
+          },
+          "rust": {
+            "microseconds": 2956.7,
+            "managedBytes": 120,
+            "samples": 5
+          }
+        },
+        "8/startup": {
+          "public": {
+            "microseconds": 7076.2,
+            "managedBytes": 1960,
+            "samples": 5
+          },
+          "previous": {
+            "microseconds": 6353.1,
+            "managedBytes": 1960,
+            "samples": 5
+          },
+          "rust": {
+            "microseconds": 2744.9,
+            "managedBytes": 176,
+            "samples": 5
+          }
+        },
+        "1/unchanged": {
+          "public": {
+            "microseconds": 11291,
+            "managedBytes": 1688,
+            "samples": 5
+          },
+          "previous": {
+            "microseconds": 11833.9,
+            "managedBytes": 1688,
+            "samples": 5
+          },
+          "rust": {
+            "microseconds": 16196.1,
+            "managedBytes": 2000,
+            "samples": 5
+          }
+        },
+        "8/completed": {
+          "public": {
+            "microseconds": 9850.4,
+            "managedBytes": 1680,
+            "samples": 5
+          },
+          "previous": {
+            "microseconds": 8518.4,
+            "managedBytes": 1680,
+            "samples": 5
+          },
+          "rust": {
+            "microseconds": 11441.2,
+            "managedBytes": 1992,
+            "samples": 5
+          }
+        },
+        "64/reordered": {
+          "public": {
+            "microseconds": 9902.3,
+            "managedBytes": 17408,
+            "samples": 5
+          },
+          "previous": {
+            "microseconds": 9816.1,
+            "managedBytes": 17408,
+            "samples": 5
+          },
+          "rust": {
+            "microseconds": 12072.4,
+            "managedBytes": 17720,
+            "samples": 5
+          }
+        },
+        "256/completed": {
+          "public": {
+            "microseconds": 11370.8,
+            "managedBytes": 25536,
+            "samples": 5
+          },
+          "previous": {
+            "microseconds": 12455.5,
+            "managedBytes": 25536,
+            "samples": 5
+          },
+          "rust": {
+            "microseconds": 14398.6,
+            "managedBytes": 25848,
+            "samples": 5
+          }
+        },
+        "1024/completed": {
+          "public": {
+            "microseconds": 32418.3,
+            "managedBytes": 99216,
+            "samples": 5
+          },
+          "previous": {
+            "microseconds": 33009,
+            "managedBytes": 99216,
+            "samples": 5
+          },
+          "rust": {
+            "microseconds": 30697.7,
+            "managedBytes": 210784,
+            "samples": 5
+          }
+        }
+      },
+      "warmMedians": [
+        {
+          "size": 0,
+          "shape": "unchanged",
+          "public": {
+            "us": 0.458,
+            "bytes": 352
+          },
+          "previous": {
+            "us": 0.4531666666666666,
+            "bytes": 352
+          },
+          "rust": {
+            "us": 0.023833333333333335,
+            "bytes": 0
+          }
+        },
+        {
+          "size": 0,
+          "shape": "reloaded",
+          "public": {
+            "us": 0.40116666666666667,
+            "bytes": 352
+          },
+          "previous": {
+            "us": 0.42333333333333334,
+            "bytes": 352
+          },
+          "rust": {
+            "us": 0.020999999999999998,
+            "bytes": 0
+          }
+        },
+        {
+          "size": 0,
+          "shape": "reordered",
+          "public": {
+            "us": 0.5316666666666666,
+            "bytes": 352
+          },
+          "previous": {
+            "us": 0.4816666666666667,
+            "bytes": 352
+          },
+          "rust": {
+            "us": 0.021833333333333333,
+            "bytes": 0
+          }
+        },
+        {
+          "size": 0,
+          "shape": "completed",
+          "public": {
+            "us": 0.4005,
+            "bytes": 352
+          },
+          "previous": {
+            "us": 0.43899999999999995,
+            "bytes": 352
+          },
+          "rust": {
+            "us": 0.021833333333333333,
+            "bytes": 0
+          }
+        },
+        {
+          "size": 1,
+          "shape": "unchanged",
+          "public": {
+            "us": 0.8131666666666666,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.8656666666666666,
+            "bytes": 760
+          },
+          "rust": {
+            "us": 0.48316666666666663,
+            "bytes": 248
+          }
+        },
+        {
+          "size": 1,
+          "shape": "reloaded",
+          "public": {
+            "us": 0.8180000000000001,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.8493333333333334,
+            "bytes": 760
+          },
+          "rust": {
+            "us": 0.4746666666666667,
+            "bytes": 248
+          }
+        },
+        {
+          "size": 1,
+          "shape": "reordered",
+          "public": {
+            "us": 0.7696666666666667,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.8953333333333334,
+            "bytes": 760
+          },
+          "rust": {
+            "us": 0.42033333333333334,
+            "bytes": 248
+          }
+        },
+        {
+          "size": 1,
+          "shape": "completed",
+          "public": {
+            "us": 0.8233333333333334,
+            "bytes": 680
+          },
+          "previous": {
+            "us": 0.8146666666666667,
+            "bytes": 680
+          },
+          "rust": {
+            "us": 0.3293333333333333,
+            "bytes": 104
+          }
+        },
+        {
+          "size": 2,
+          "shape": "unchanged",
+          "public": {
+            "us": 1.0403333333333333,
+            "bytes": 952
+          },
+          "previous": {
+            "us": 1.0211666666666668,
+            "bytes": 952
+          },
+          "rust": {
+            "us": 0.49583333333333335,
+            "bytes": 256
+          }
+        },
+        {
+          "size": 2,
+          "shape": "reloaded",
+          "public": {
+            "us": 1.0625,
+            "bytes": 952
+          },
+          "previous": {
+            "us": 1.0511666666666668,
+            "bytes": 952
+          },
+          "rust": {
+            "us": 0.5405,
+            "bytes": 256
+          }
+        },
+        {
+          "size": 2,
+          "shape": "reordered",
+          "public": {
+            "us": 0.9761666666666667,
+            "bytes": 952
+          },
+          "previous": {
+            "us": 1.0753333333333335,
+            "bytes": 952
+          },
+          "rust": {
+            "us": 0.545,
+            "bytes": 256
+          }
+        },
+        {
+          "size": 2,
+          "shape": "completed",
+          "public": {
+            "us": 0.9828333333333334,
+            "bytes": 912
+          },
+          "previous": {
+            "us": 1.0518333333333334,
+            "bytes": 912
+          },
+          "rust": {
+            "us": 0.4326666666666667,
+            "bytes": 112
+          }
+        },
+        {
+          "size": 8,
+          "shape": "unchanged",
+          "public": {
+            "us": 2.933,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 2.6816666666666666,
+            "bytes": 2536
+          },
+          "rust": {
+            "us": 1.2678333333333334,
+            "bytes": 736
+          }
+        },
+        {
+          "size": 8,
+          "shape": "reloaded",
+          "public": {
+            "us": 3.112,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 2.7115,
+            "bytes": 2536
+          },
+          "rust": {
+            "us": 1.274,
+            "bytes": 736
+          }
+        },
+        {
+          "size": 8,
+          "shape": "reordered",
+          "public": {
+            "us": 8.9555,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 8.258666666666667,
+            "bytes": 2536
+          },
+          "rust": {
+            "us": 1.3975,
+            "bytes": 736
+          }
+        },
+        {
+          "size": 8,
+          "shape": "completed",
+          "public": {
+            "us": 3.695666666666667,
+            "bytes": 1776
+          },
+          "previous": {
+            "us": 4.0595,
+            "bytes": 1776
+          },
+          "rust": {
+            "us": 1.2088333333333332,
+            "bytes": 160
+          }
+        },
+        {
+          "size": 32,
+          "shape": "unchanged",
+          "public": {
+            "us": 10.875,
+            "bytes": 8872
+          },
+          "previous": {
+            "us": 11.215,
+            "bytes": 8872
+          },
+          "rust": {
+            "us": 6.777,
+            "bytes": 2656
+          }
+        },
+        {
+          "size": 32,
+          "shape": "reloaded",
+          "public": {
+            "us": 10.321,
+            "bytes": 8872
+          },
+          "previous": {
+            "us": 10.802,
+            "bytes": 8872
+          },
+          "rust": {
+            "us": 7.136,
+            "bytes": 2656
+          }
+        },
+        {
+          "size": 32,
+          "shape": "reordered",
+          "public": {
+            "us": 11.34,
+            "bytes": 8872
+          },
+          "previous": {
+            "us": 11.422,
+            "bytes": 8872
+          },
+          "rust": {
+            "us": 9.602,
+            "bytes": 2656
+          }
+        },
+        {
+          "size": 32,
+          "shape": "completed",
+          "public": {
+            "us": 12.385,
+            "bytes": 5256
+          },
+          "previous": {
+            "us": 11.222999999999999,
+            "bytes": 5256
+          },
+          "rust": {
+            "us": 8.939,
+            "bytes": 352
+          }
+        },
+        {
+          "size": 64,
+          "shape": "unchanged",
+          "public": {
+            "us": 34.262,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 28.995,
+            "bytes": 17320
+          },
+          "rust": {
+            "us": 13.796,
+            "bytes": 5216
+          }
+        },
+        {
+          "size": 64,
+          "shape": "reloaded",
+          "public": {
+            "us": 34.693000000000005,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 46.077,
+            "bytes": 17320
+          },
+          "rust": {
+            "us": 13.975999999999999,
+            "bytes": 5216
+          }
+        },
+        {
+          "size": 64,
+          "shape": "reordered",
+          "public": {
+            "us": 34.086,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 29.066,
+            "bytes": 17320
+          },
+          "rust": {
+            "us": 19.695,
+            "bytes": 5216
+          }
+        },
+        {
+          "size": 64,
+          "shape": "completed",
+          "public": {
+            "us": 41.382,
+            "bytes": 9840
+          },
+          "previous": {
+            "us": 35.621,
+            "bytes": 9840
+          },
+          "rust": {
+            "us": 16.137,
+            "bytes": 608
+          }
+        },
+        {
+          "size": 256,
+          "shape": "unchanged",
+          "public": {
+            "us": 372.8333333333333,
+            "bytes": 68008
+          },
+          "previous": {
+            "us": 329.77500000000003,
+            "bytes": 68008
+          },
+          "rust": {
+            "us": 52.208333333333336,
+            "bytes": 20576
+          }
+        },
+        {
+          "size": 256,
+          "shape": "reloaded",
+          "public": {
+            "us": 368.2166666666667,
+            "bytes": 68008
+          },
+          "previous": {
+            "us": 341.80833333333334,
+            "bytes": 68008
+          },
+          "rust": {
+            "us": 54.6,
+            "bytes": 20576
+          }
+        },
+        {
+          "size": 256,
+          "shape": "reordered",
+          "public": {
+            "us": 391.2,
+            "bytes": 68008
+          },
+          "previous": {
+            "us": 353.075,
+            "bytes": 68008
+          },
+          "rust": {
+            "us": 87.68333333333334,
+            "bytes": 20576
+          }
+        },
+        {
+          "size": 256,
+          "shape": "completed",
+          "public": {
+            "us": 544.2583333333333,
+            "bytes": 37512
+          },
+          "previous": {
+            "us": 497.3416666666667,
+            "bytes": 37512
+          },
+          "rust": {
+            "us": 65.68333333333334,
+            "bytes": 2144
+          }
+        },
+        {
+          "size": 1024,
+          "shape": "unchanged",
+          "public": {
+            "us": 5964.5,
+            "bytes": 270760
+          },
+          "previous": {
+            "us": 5255.7,
+            "bytes": 270760
+          },
+          "rust": {
+            "us": 184.025,
+            "bytes": 82016
+          }
+        },
+        {
+          "size": 1024,
+          "shape": "reloaded",
+          "public": {
+            "us": 5919.15,
+            "bytes": 270760
+          },
+          "previous": {
+            "us": 5032.95,
+            "bytes": 270760
+          },
+          "rust": {
+            "us": 183.225,
+            "bytes": 82016
+          }
+        },
+        {
+          "size": 1024,
+          "shape": "reordered",
+          "public": {
+            "us": 5980.65,
+            "bytes": 270760
+          },
+          "previous": {
+            "us": 6084.3,
+            "bytes": 270760
+          },
+          "rust": {
+            "us": 261.225,
+            "bytes": 82016
+          }
+        },
+        {
+          "size": 1024,
+          "shape": "completed",
+          "public": {
+            "us": 8617.425,
+            "bytes": 148080
+          },
+          "previous": {
+            "us": 8507.1,
+            "bytes": 148080
+          },
+          "rust": {
+            "us": 264.5,
+            "bytes": 8288
+          }
+        }
+      ]
+    }
+  },
+  "independent": {
+    "reconciliation": {
+      "commit": "643d6bb1b3f7fdf4e3eb930a2d78822c514e337d",
+      "casesPerMode": 630,
+      "modes": [
+        "cold accounting bridge",
+        "bridge loaded by two actual session groups"
+      ],
+      "platform": "macOS Arm64 .NET 10",
+      "scenarios": "Object identity, full UTF-16 fields, offsets, callback publication, fake-chime mutation and reentry, exception identity.",
+      "receiptSha256": "20fb841b0a109bf42db89525f7fa6b726b52075f0fbbaf19813962b68885cf7b"
+    },
+    "firstSnapshot": {
+      "commit": "c9ee694fdac1e9c52da5b7a25170ff54c96ef084",
+      "casesPerSide": 105,
+      "sizes": [
+        0,
+        1,
+        8
+      ],
+      "firstCallSamplesPerSide": 15,
+      "first0To1MedianUs": {
+        "public": 1225.7,
+        "previous": 1607.7,
+        "candidate": 403.5
+      },
+      "sameOutputSha256": "1d41d72295922d79c8362d721d067eb7dd44db714eb23efacb5fd7bde7f69816",
+      "receiptSha256": "39ce392bc7e7c2cabecc99f9fbd432301b55c9add9d002ccb716909058b5f20f"
+    }
+  },
+  "nativeWindows": "Physical Windows was not timed in this local comparison. Hosted Windows x64 and ARM64 CI is tracked separately.",
+  "formalGate": {
+    "verdict": "INCONCLUSIVE",
+    "unsupportedCheck": "test",
+    "reason": "No repository test command is configured for this development-harness check.",
+    "packetDigest": "4404f3ecceaf70cd348c9c18bbbd68077789a6479653e88d68ab92f7d5073bb5"
+  }
+}
