@@ -100,6 +100,38 @@ def compare(binaries, work):
     return {"actions": len(ops), "reopened_keys": len(keys), "sha256": hashlib.sha256(witness).hexdigest()}
 
 
+def compare_writes(binaries, work):
+    fields = ["path", "identity", "fingerprint", "session", "model", "project", "parent", "name"]
+    values = ["", "x", "a" * 15, "b" * 16, "ascii" * 128, "é", "e\u0301", "한글/👩🏽‍💻",
+              "\r\n", "상태/" * 2048, "\0", "중간\0문자", "end\0", "\0\u0301"]
+    ops, expected = [], []
+    for field in fields:
+        for i, value in enumerate(values):
+            path = f"write-{field}-{i}"
+            ops.append(["write", path, field, value])
+            expected.append("Database statement failed: text value is not safe to store" if "\0" in value else "saved")
+    # A failed step must leave the pre-existing checkpoint unchanged.
+    ops += [["sql", "CREATE TRIGGER stop_checkpoint BEFORE UPDATE ON parsing_state BEGIN SELECT RAISE(ABORT,'synthetic stop'); END"],
+            ["write", "write-model-1", "model", "replacement"], ["sql", "DROP TRIGGER stop_checkpoint"]]
+    expected += ["SQL 0", "Database operation failed: synthetic stop", "SQL 0"]
+    payload = "".join(json.dumps(op) + "\n" for op in ops).encode()
+    reference = None
+    for i, binary in enumerate(binaries):
+        path = work / f"text-write-{i}.sqlite"
+        observed = subprocess.check_output([binary, path, "commands"], input=payload).decode().splitlines()
+        assert observed == expected, [(n, got, want) for n, (got, want) in enumerate(zip(observed, expected)) if got != want][:2]
+        with closing(sqlite3.connect(path)) as db:
+            assert db.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+            cols = [r[1] for r in db.execute("PRAGMA table_info(parsing_state)") if r[1] != "updated_at"]
+            rows = db.execute("SELECT " + ", ".join(cols) + " FROM parsing_state ORDER BY source_path").fetchall()
+        assert len(rows) == expected.count("saved")
+        if reference is not None:
+            assert rows == reference
+        reference = rows
+    return {"writes": len(ops) - 2, "persisted": len(reference),
+            "sha256": hashlib.sha256(json.dumps(reference, ensure_ascii=True).encode()).hexdigest()}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--archive", type=Path, required=True)
@@ -111,7 +143,9 @@ def main():
         driver = HERE / "main.swift"
         binaries = [db_contract.build(work / "release", args.arch, driver=driver),
                     db_contract.build(work / "rust", args.arch, args.archive.resolve(strict=True), driver=driver)]
-        print(json.dumps(compare(binaries, work), sort_keys=True))
+        result = compare(binaries, work)
+        result["checkpointWrites"] = compare_writes(binaries, work)
+        print(json.dumps(result, sort_keys=True))
         if args.benchmark_output:
             path = work / "benchmark.sqlite"
             subprocess.run([binaries[0], path, "init"], check=True)

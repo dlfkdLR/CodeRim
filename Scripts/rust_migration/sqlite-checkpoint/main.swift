@@ -62,6 +62,24 @@ if args[2] == "bench" || args[2] == "collector" {
         if input[0] == "query" {
             do { print(inspect(try await database.checkpoint(for: input[1]))) }
             catch { print(error.localizedDescription) }
+        } else if input[0] == "write" {
+            var checkpoint = SourceCheckpoint.fresh(sourcePath: input[1], fileIdentity: "synthetic")
+            let text = input[3]
+            switch input[2] {
+            case "path": checkpoint = .fresh(sourcePath: text, fileIdentity: "synthetic")
+            case "identity": checkpoint.fileIdentity = text
+            case "fingerprint": checkpoint.contentFingerprint = text
+            case "session": checkpoint.sessionID = text
+            case "model": checkpoint.model = text
+            case "project": checkpoint.projectPath = text
+            case "parent": checkpoint.parentSessionID = text
+            case "name": checkpoint.projectName = text
+            default: fatalError("unknown checkpoint field")
+            }
+            do {
+                _ = try await database.commit(events: [], checkpoint: checkpoint, normalizationState: nil)
+                print("saved")
+            } catch { print(error.localizedDescription) }
         } else if input[0] == "observe" {
             print("events", try await database.eventCount())
         } else {
