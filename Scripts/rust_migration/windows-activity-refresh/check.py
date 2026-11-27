@@ -51,7 +51,7 @@ def main():
     report = {"host": platform.platform(), "candidate": revision(ROOT), "inputs": {}, "librarySha256": sha(library.read_bytes()),
               "timing": "us is elapsed microseconds per published update; bytes are managed allocations on the calling thread. Native scratch is excluded."}
     with tempfile.TemporaryDirectory(prefix="coderim-activity-refresh-") as temp:
-        work = Path(temp)
+        work = Path(temp).resolve()
         binaries = {}
         shell = (HERE / "Shell.cs.in").read_text(encoding="utf-8")
         for kind, source in (("public", reference), ("previous", previous), ("rust", ROOT)):
