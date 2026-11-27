@@ -405,13 +405,11 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
         var includeSubagentSound = settings.Current.SubagentSound;
         var finishedSound = refresh?.ShouldChimeFinished(includeSubagentSound) ?? current.Any(x => Crossed(x, "idle", includeSubagentSound));
         var blockedSound = refresh?.ShouldChimeBlocked(includeSubagentSound) ?? current.Any(x => Crossed(x, "waiting", includeSubagentSound));
-        if (settings.Current.CompletionSound)
-        {
-            if (finishedSound) SessionChime.Play(settings.Current.FinishedSound);
-            else if (blockedSound) SessionChime.Play(settings.Current.BlockedSound);
-        }
+        bool played = settings.Current.CompletionSound && (finishedSound || blockedSound);
+        if (played) SessionChime.Play(finishedSound ? settings.Current.FinishedSound : settings.Current.BlockedSound);
+        // The sound runs after publication. Read the current rows again if it ran before attention.
         if (finished || blocked)
-            SessionAttentionRequested?.Invoke(refresh?.Attention ?? current.Where(x => x.State is "idle" or "waiting"
+            SessionAttentionRequested?.Invoke((played ? null : refresh?.Attention) ?? current.Where(x => x.State is "idle" or "waiting"
                 && previous.Any(old => old.Id == x.Id && old.Provider == x.Provider && old.State == "busy"))
                 .OrderByDescending(x => x.Since).First());
         // Publish at the mutation boundary. Every caller, including updates that

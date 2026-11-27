@@ -47,10 +47,17 @@ internal static class RustAccountingLibrary
             handle = NativeLibrary.Load(path);
         }
 
+        RustAccountingLoadState.IsLoaded = true;
         return handle;
     }
 
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
     private static extern nint LoadLibraryExW(string filename, nint file, uint flags);
+}
+
+// Read by the activity timer without initializing the resolver or loading a library.
+internal static class RustAccountingLoadState
+{
+    internal static volatile bool IsLoaded;
 }

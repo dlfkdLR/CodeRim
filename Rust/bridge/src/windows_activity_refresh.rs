@@ -22,12 +22,80 @@ pub struct Decision {
     signals: i32,
 }
 
+impl Decision {
+    fn record(
+        &mut self,
+        i: usize,
+        item: &Node,
+        previous: Option<usize>,
+        busy: bool,
+        old: &[Node],
+        latest: &mut i64,
+    ) {
+        if !busy {
+            return;
+        }
+        let signal = match item.state {
+            IDLE => 1,
+            WAITING => 2,
+            _ => return,
+        };
+        self.signals |= signal;
+        if item.flags & ROOT != 0 {
+            self.signals |= signal << 2;
+        }
+        let since = previous.map_or(item.since, |index| old[index].since);
+        if self.attention == -1 || since > *latest {
+            *latest = since;
+            self.attention = i as i32;
+        }
+    }
+}
+
 fn resolve(
     old: &[Node],
     incoming: &[Node],
     identities: usize,
     matches: &mut [MaybeUninit<i32>],
 ) -> Decision {
+    let mut result = Decision {
+        attention: -1,
+        signals: 0,
+    };
+    let mut latest = i64::MIN;
+    // Small captures are common on the two-second timer. Scan their contiguous numeric rows
+    // directly, avoiding a native allocation for both the busy flags and the lookup table.
+    if old.len() <= 32 && incoming.len() <= 32 {
+        for (i, item) in incoming.iter().enumerate() {
+            let claude = item.flags & CLAUDE != 0;
+            let transition = matches!(item.state, IDLE | WAITING);
+            let mut previous = None;
+            let mut busy = false;
+            if claude || transition {
+                for (j, prior) in old.iter().enumerate() {
+                    if prior.id != item.id {
+                        continue;
+                    }
+                    busy |= prior.state == BUSY;
+                    if claude
+                        && previous.is_none()
+                        && prior.flags & CLAUDE != 0
+                        && prior.state == item.state
+                        && prior.process_start == item.process_start
+                    {
+                        previous = Some(j);
+                    }
+                    if (!transition || busy) && (!claude || previous.is_some()) {
+                        break;
+                    }
+                }
+            }
+            matches[i].write(previous.map_or(-1, |index| index as i32));
+            result.record(i, item, previous, busy, old, &mut latest);
+        }
+        return result;
+    }
+
     let mut busy = vec![false; identities];
     let mut first_claude = HashMap::new();
     for (i, item) in old.iter().enumerate() {
@@ -40,11 +108,6 @@ fn resolve(
                 .or_insert(i);
         }
     }
-    let mut result = Decision {
-        attention: -1,
-        signals: 0,
-    };
-    let mut latest = i64::MIN;
     for (i, item) in incoming.iter().enumerate() {
         let previous = if item.flags & CLAUDE != 0 {
             first_claude
@@ -54,23 +117,7 @@ fn resolve(
             None
         };
         matches[i].write(previous.map_or(-1, |index| index as i32));
-        if !busy[item.id as usize] {
-            continue;
-        }
-        let signal = match item.state {
-            IDLE => 1,
-            WAITING => 2,
-            _ => continue,
-        };
-        result.signals |= signal;
-        if item.flags & ROOT != 0 {
-            result.signals |= signal << 2;
-        }
-        let since = previous.map_or(item.since, |index| old[index].since);
-        if result.attention == -1 || since > latest {
-            latest = since;
-            result.attention = i as i32;
-        }
+        result.record(i, item, previous, busy[item.id as usize], old, &mut latest);
     }
     result
 }
