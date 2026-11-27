@@ -17,25 +17,36 @@ fn number(value: i64, locale: &Locale) -> String {
     out
 }
 fn percent(value: f64, l: &Locale) -> Option<String> {
-    if !value.is_finite() || !(0.0..1e12).contains(&value) {
+    if !value.is_finite() || value.is_sign_negative() {
         return None;
     }
-    let s = value.to_string();
-    let (integer, fraction) = s.split_once('.').unwrap_or((&s, ""));
-    // For longer decimal representations, preserve the managed formatter's significant-digit
-    // rounding rather than infer a midpoint from an already rounded binary64 display.
-    if s.bytes().filter(u8::is_ascii_digit).count() > 14 {
-        return None;
+    if value.fract() == 0.0 && value < 1e15 {
+        return Some((value as u64).to_string());
     }
-    let d = fraction.as_bytes();
-    let tenths = integer.parse::<u64>().ok()? * 10
-        + u64::from(d.first().map_or(0, |v| v - b'0'))
-        + u64::from(d.get(1).is_some_and(|&b| b >= b'5'));
-    Some(if tenths % 10 == 0 {
-        (tenths / 10).to_string()
+
+    // The released CLR first rounds a double to 15 significant digits for a
+    // custom format. "0.#" then rounds those decimal digits to the nearest
+    // tenth, taking a midpoint up. Rounding the binary double directly differs.
+    let scientific = format!("{value:.14e}");
+    let (digits, exponent) = scientific.split_once('e')?;
+    let exponent: i32 = exponent.parse().ok()?;
+    if exponent < -2 {
+        return Some("0".to_owned());
+    }
+    let digits = digits.replace('.', "");
+    if exponent >= 14 {
+        return Some(digits + &"0".repeat((exponent - 14) as usize));
+    }
+    let significand: u64 = digits.parse().ok()?;
+    let divisor = 10_u64.pow((13 - exponent) as u32);
+    let tenths = (significand + divisor / 2) / divisor;
+    let whole = tenths / 10;
+    let fraction = tenths % 10;
+    if fraction == 0 {
+        Some(whole.to_string())
     } else {
-        format!("{}{}{}", tenths / 10, l.decimal, tenths % 10)
-    })
+        Some(format!("{whole}{}{fraction}", l.decimal))
+    }
 }
 pub fn text(o: &Options, time: i64, rows: &[J]) -> Option<String> {
     let locale = system::locale()?;
