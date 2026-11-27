@@ -1,0 +1,602 @@
+{
+  "released": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "previous": "3bc3e990c021c634e2b2e35be526033d1bbeccd2",
+  "product": "3cac7919423000e7b22a9b56a9ed219ef1b3f2fe",
+  "qa": "5569993106e319357f11f6069bb4d407094b0822",
+  "entry": "DashboardStore.UpdateSessionActivity on the WPF activity timer. Ordinary bounded pairs still use the existing Rust accounting ABI when loaded. Bounded captures can finish without loading that bridge on startup.",
+  "measure": "First three consecutive handler calls within each of five fresh processes, with empty or already displayed session tree. Warm samples use separate processes. Elapsed microseconds and calling-thread managed bytes exclude native allocation and UI composition.",
+  "platforms": {
+    "arm64": {
+      "runtime": {
+        "os": "macOS 26.6.2",
+        "isa": "Arm64",
+        "framework": ".NET 10.0.12"
+      },
+      "fixtureSha256": "d7c6a6634091179f0994a98f76d429b335b87f81e9751853d8ef5896f180b112",
+      "contract": {
+        "cases": 1486,
+        "digest": "5b102c9a25e7d55d1b509896f92d869a4ddc263ed7d5e25acb6a2f93ef5fb909",
+        "managedErrors": 186,
+        "rows": 18765,
+        "sounds": 184,
+        "attentions": 355,
+        "changed": 974
+      },
+      "firstThreeUpdates": {
+        "1/steady/cold": {
+          "sumMedianUs": {
+            "public": 1702.3,
+            "previous": 1711.0,
+            "rust": 1669.9
+          },
+          "sumMedianManagedBytes": {
+            "public": 2640,
+            "previous": 1192,
+            "rust": 1192
+          }
+        },
+        "1/steady/active": {
+          "sumMedianUs": {
+            "public": 1451.6,
+            "previous": 1644.8,
+            "rust": 1668.2
+          },
+          "sumMedianManagedBytes": {
+            "public": 2640,
+            "previous": 1320,
+            "rust": 1312
+          }
+        },
+        "1/transition/cold": {
+          "sumMedianUs": {
+            "public": 2543.8,
+            "previous": 1506.5,
+            "rust": 1560.7
+          },
+          "sumMedianManagedBytes": {
+            "public": 2768,
+            "previous": 688,
+            "rust": 688
+          }
+        },
+        "1/transition/active": {
+          "sumMedianUs": {
+            "public": 1889.0,
+            "previous": 1546.0,
+            "rust": 1558.2
+          },
+          "sumMedianManagedBytes": {
+            "public": 2680,
+            "previous": 816,
+            "rust": 808
+          }
+        },
+        "8/steady/cold": {
+          "sumMedianUs": {
+            "public": 1614.1,
+            "previous": 2428.4,
+            "rust": 2148.0
+          },
+          "sumMedianManagedBytes": {
+            "public": 7536,
+            "previous": 5976,
+            "rust": 2312
+          }
+        },
+        "8/steady/active": {
+          "sumMedianUs": {
+            "public": 1468.8000000000002,
+            "previous": 3880.1,
+            "rust": 2541.4
+          },
+          "sumMedianManagedBytes": {
+            "public": 7536,
+            "previous": 2504,
+            "rust": 2432
+          }
+        },
+        "8/transition/cold": {
+          "sumMedianUs": {
+            "public": 2508.3,
+            "previous": 3324.1,
+            "rust": 2131.6
+          },
+          "sumMedianManagedBytes": {
+            "public": 7976,
+            "previous": 6440,
+            "rust": 880
+          }
+        },
+        "8/transition/active": {
+          "sumMedianUs": {
+            "public": 2031.7,
+            "previous": 5114.4,
+            "rust": 2685.8999999999996
+          },
+          "sumMedianManagedBytes": {
+            "public": 7888,
+            "previous": 2152,
+            "rust": 1000
+          }
+        },
+        "64/steady/cold": {
+          "sumMedianUs": {
+            "public": 2120.0,
+            "previous": 3568.0,
+            "rust": 2434.5
+          },
+          "sumMedianManagedBytes": {
+            "public": 47856,
+            "previous": 35992,
+            "rust": 11720
+          }
+        },
+        "64/steady/active": {
+          "sumMedianUs": {
+            "public": 1602.6,
+            "previous": 4179.2,
+            "rust": 2632.7
+          },
+          "sumMedianManagedBytes": {
+            "public": 47856,
+            "previous": 22352,
+            "rust": 11840
+          }
+        },
+        "64/transition/cold": {
+          "sumMedianUs": {
+            "public": 3962.7,
+            "previous": 4954.5,
+            "rust": 3250.8
+          },
+          "sumMedianManagedBytes": {
+            "public": 49640,
+            "previous": 37800,
+            "rust": 2224
+          }
+        },
+        "64/transition/active": {
+          "sumMedianUs": {
+            "public": 2759.3999999999996,
+            "previous": 6897.599999999999,
+            "rust": 2691.6000000000004
+          },
+          "sumMedianManagedBytes": {
+            "public": 49552,
+            "previous": 18864,
+            "rust": 2344
+          }
+        }
+      },
+      "warm": {
+        "8/unchanged": {
+          "public": {
+            "us": 1.1828333333333334,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 0.6286666666666666,
+            "bytes": 736
+          },
+          "rust": {
+            "us": 0.6273333333333333,
+            "bytes": 704
+          }
+        },
+        "8/reloaded": {
+          "public": {
+            "us": 1.2913333333333332,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 0.7225,
+            "bytes": 736
+          },
+          "rust": {
+            "us": 0.7103333333333333,
+            "bytes": 704
+          }
+        },
+        "8/reordered": {
+          "public": {
+            "us": 3.7525,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 0.7211666666666666,
+            "bytes": 736
+          },
+          "rust": {
+            "us": 0.7056666666666667,
+            "bytes": 704
+          }
+        },
+        "8/completed": {
+          "public": {
+            "us": 0.9351666666666667,
+            "bytes": 1776
+          },
+          "previous": {
+            "us": 0.6613333333333333,
+            "bytes": 160
+          },
+          "rust": {
+            "us": 0.6525,
+            "bytes": 128
+          }
+        },
+        "64/unchanged": {
+          "public": {
+            "us": 14.443,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 8.942,
+            "bytes": 5216
+          },
+          "rust": {
+            "us": 7.327000000000001,
+            "bytes": 5184
+          }
+        },
+        "64/reloaded": {
+          "public": {
+            "us": 17.628,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 9.257,
+            "bytes": 5216
+          },
+          "rust": {
+            "us": 7.669,
+            "bytes": 5184
+          }
+        },
+        "64/reordered": {
+          "public": {
+            "us": 15.198,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 11.078,
+            "bytes": 5216
+          },
+          "rust": {
+            "us": 8.488,
+            "bytes": 5184
+          }
+        },
+        "64/completed": {
+          "public": {
+            "us": 18.733,
+            "bytes": 9840
+          },
+          "previous": {
+            "us": 11.103,
+            "bytes": 608
+          },
+          "rust": {
+            "us": 8.046,
+            "bytes": 576
+          }
+        }
+      }
+    },
+    "x64": {
+      "runtime": {
+        "os": "macOS 26.6.2",
+        "isa": "X64",
+        "framework": ".NET 10.0.12"
+      },
+      "fixtureSha256": "f433ccefccb6adab3899f28b5e4d03e16462e604045282da5df19d9a4416b7bc",
+      "contract": {
+        "cases": 1486,
+        "digest": "5b102c9a25e7d55d1b509896f92d869a4ddc263ed7d5e25acb6a2f93ef5fb909",
+        "managedErrors": 186,
+        "rows": 18765,
+        "sounds": 184,
+        "attentions": 355,
+        "changed": 974
+      },
+      "firstThreeUpdates": {
+        "1/steady/cold": {
+          "sumMedianUs": {
+            "public": 10572.7,
+            "previous": 8752.0,
+            "rust": 7213.3
+          },
+          "sumMedianManagedBytes": {
+            "public": 2640,
+            "previous": 1192,
+            "rust": 1192
+          }
+        },
+        "1/steady/active": {
+          "sumMedianUs": {
+            "public": 7186.6,
+            "previous": 7735.4,
+            "rust": 7392.9
+          },
+          "sumMedianManagedBytes": {
+            "public": 2640,
+            "previous": 1320,
+            "rust": 1312
+          }
+        },
+        "1/transition/cold": {
+          "sumMedianUs": {
+            "public": 11614.6,
+            "previous": 7239.3,
+            "rust": 7411.4
+          },
+          "sumMedianManagedBytes": {
+            "public": 2768,
+            "previous": 688,
+            "rust": 688
+          }
+        },
+        "1/transition/active": {
+          "sumMedianUs": {
+            "public": 10616.8,
+            "previous": 7684.9,
+            "rust": 7810.7
+          },
+          "sumMedianManagedBytes": {
+            "public": 2680,
+            "previous": 816,
+            "rust": 808
+          }
+        },
+        "8/steady/cold": {
+          "sumMedianUs": {
+            "public": 10464.1,
+            "previous": 12668.5,
+            "rust": 11199.6
+          },
+          "sumMedianManagedBytes": {
+            "public": 7536,
+            "previous": 5976,
+            "rust": 2312
+          }
+        },
+        "8/steady/active": {
+          "sumMedianUs": {
+            "public": 7841.4,
+            "previous": 25556.100000000002,
+            "rust": 13504.8
+          },
+          "sumMedianManagedBytes": {
+            "public": 7536,
+            "previous": 2504,
+            "rust": 2432
+          }
+        },
+        "8/transition/cold": {
+          "sumMedianUs": {
+            "public": 12495.3,
+            "previous": 17749.4,
+            "rust": 10845.1
+          },
+          "sumMedianManagedBytes": {
+            "public": 7976,
+            "previous": 6440,
+            "rust": 880
+          }
+        },
+        "8/transition/active": {
+          "sumMedianUs": {
+            "public": 8307.3,
+            "previous": 25224.7,
+            "rust": 11744.6
+          },
+          "sumMedianManagedBytes": {
+            "public": 7888,
+            "previous": 2152,
+            "rust": 1000
+          }
+        },
+        "64/steady/cold": {
+          "sumMedianUs": {
+            "public": 9507.5,
+            "previous": 11754.2,
+            "rust": 10314.8
+          },
+          "sumMedianManagedBytes": {
+            "public": 47856,
+            "previous": 35992,
+            "rust": 11720
+          }
+        },
+        "64/steady/active": {
+          "sumMedianUs": {
+            "public": 7342.7,
+            "previous": 16089.199999999999,
+            "rust": 11609.5
+          },
+          "sumMedianManagedBytes": {
+            "public": 47856,
+            "previous": 22352,
+            "rust": 11840
+          }
+        },
+        "64/transition/cold": {
+          "sumMedianUs": {
+            "public": 11151.8,
+            "previous": 14956.7,
+            "rust": 10752.9
+          },
+          "sumMedianManagedBytes": {
+            "public": 49640,
+            "previous": 37800,
+            "rust": 2224
+          }
+        },
+        "64/transition/active": {
+          "sumMedianUs": {
+            "public": 9689.1,
+            "previous": 22875.899999999998,
+            "rust": 12974.900000000001
+          },
+          "sumMedianManagedBytes": {
+            "public": 49552,
+            "previous": 18864,
+            "rust": 2344
+          }
+        }
+      },
+      "warm": {
+        "8/unchanged": {
+          "public": {
+            "us": 2.673833333333333,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 1.236,
+            "bytes": 736
+          },
+          "rust": {
+            "us": 1.1458333333333333,
+            "bytes": 704
+          }
+        },
+        "8/reloaded": {
+          "public": {
+            "us": 2.8888333333333334,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 1.228,
+            "bytes": 736
+          },
+          "rust": {
+            "us": 1.2576666666666667,
+            "bytes": 704
+          }
+        },
+        "8/reordered": {
+          "public": {
+            "us": 9.462833333333332,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 1.2865,
+            "bytes": 736
+          },
+          "rust": {
+            "us": 1.263,
+            "bytes": 704
+          }
+        },
+        "8/completed": {
+          "public": {
+            "us": 4.534166666666667,
+            "bytes": 1776
+          },
+          "previous": {
+            "us": 1.0363333333333333,
+            "bytes": 160
+          },
+          "rust": {
+            "us": 1.0786666666666667,
+            "bytes": 128
+          }
+        },
+        "64/unchanged": {
+          "public": {
+            "us": 29.320999999999998,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 14.237,
+            "bytes": 5216
+          },
+          "rust": {
+            "us": 11.556,
+            "bytes": 5184
+          }
+        },
+        "64/reloaded": {
+          "public": {
+            "us": 35.969,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 14.538,
+            "bytes": 5216
+          },
+          "rust": {
+            "us": 12.08,
+            "bytes": 5184
+          }
+        },
+        "64/reordered": {
+          "public": {
+            "us": 32.253,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 18.082,
+            "bytes": 5216
+          },
+          "rust": {
+            "us": 12.694,
+            "bytes": 5184
+          }
+        },
+        "64/completed": {
+          "public": {
+            "us": 35.793,
+            "bytes": 9840
+          },
+          "previous": {
+            "us": 16.924,
+            "bytes": 608
+          },
+          "rust": {
+            "us": 12.597999999999999,
+            "bytes": 576
+          }
+        }
+      }
+    }
+  },
+  "independent": {
+    "packetDigest": "e6877a2b412110a9a4a20bf6671c7231b5e812ee98e5050e8d452928b8553cd2",
+    "sha256": "7b46b24407c12c6aae821b48a1c3e68e7faa9563cb131b7e8ed6440ffc1c6fd3",
+    "casesPerLoadState": 1044,
+    "errorsPerLoadState": 203,
+    "loadStates": [
+      "unloaded",
+      "loaded by actual session tree"
+    ],
+    "compared": [
+      "v2.1.41",
+      "3bc3e990",
+      "3cac7919"
+    ],
+    "coverage": "Publication order, row/value/reference identity, callback mutations, reentrant refresh, exact managed exception and empty sequence, 0..65 rows, 64 IDs in one initial bucket, full 32-bit ordinal hash collision, duplicate ID with multiple providers, same UTC timestamps with different offsets.",
+    "freshThreeUpdatesActiveMs": {
+      "8rows": [
+        2.157,
+        5.041,
+        3.026
+      ],
+      "64rows": [
+        2.236,
+        5.283,
+        2.838
+      ]
+    },
+    "finding": "Compared with the immediately preceding build, medians for all twelve first-three-update workloads decreased, as did managed allocation. Eleven separately measured warm cases were faster and one tied. A gap to the published first multirow update remains."
+  },
+  "formalHarness": {
+    "decision": "INCONCLUSIVE",
+    "reason": "No native .NET/Rust test adapter and no operator-attested independent import."
+  },
+  "builds": [
+    "Managed WPF cross-build from Apple Silicon, zero compiler warnings/errors",
+    "Rust accounting WPF cross-build from Apple Silicon, zero compiler warnings/errors"
+  ],
+  "nativeWindows": "Native x64 and ARM64 are tracked by the migration CI. These local timings come from macOS arm64 and Rosetta x64 .NET."
+}

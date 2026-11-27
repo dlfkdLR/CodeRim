@@ -116,8 +116,8 @@ public static partial class SessionPresentation
 
     private static SessionActivityRefresh PlanSmall(SessionActivity[] old, SessionActivity[] next)
     {
-        // At most 64 rows from each capture. Their source positions provide exact ordinals
-        // without constructing a hash table. Only previous-row identities can match a new row.
+        // Up to 64 rows use previous positions as ordinals. Larger bounded captures keep
+        // a stack index from each identity to its first previous position.
         Span<RustActivityRefresh.Node> prior = stackalloc RustActivityRefresh.Node[old.Length];
         Span<RustActivityRefresh.Node> incoming = stackalloc RustActivityRefresh.Node[next.Length];
         Span<int> matches = stackalloc int[next.Length];
