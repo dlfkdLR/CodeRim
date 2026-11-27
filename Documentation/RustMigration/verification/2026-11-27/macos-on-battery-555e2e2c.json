@@ -1,0 +1,1465 @@
+{
+  "candidateProduct": "555e2e2cf8f71ed31eef5d2ede0d9f0fc17fb069",
+  "publicVersion": "v2.1.41",
+  "host": "Mac17,2, Apple M5, macOS 26.6.2",
+  "startUTC": "2026-11-27T00:23:51.314143+00:00",
+  "endUTC": "2026-11-27T00:37:30.241097+00:00",
+  "binarySha256": {
+    "public": "5f4a4b3c2245b578b18110d0a552e8bdbf36d5c5db95b95fe036d30467624d64",
+    "candidate": "6b605d2987b8bea064947ed3ef7897685ccad3bbefa54132496fac9cbc025204"
+  },
+  "sampleFileSha256": "e44fff25b319acc47762792333a20f5a2e534a61dc778163d785a76a35aad931",
+  "driverSha256": "25bdada365dbf4a9e811677291d65e777a9533891a263b44fb2fa142ceb3e1ea",
+  "analysisSha256": "e83d86cd5cf4403c4f5b322757be3dd0fa8e21ad48456d39f76ba19f80ef96e4",
+  "schema18Result": {
+    "schema": 18,
+    "integrity": "ok",
+    "events": [
+      [
+        "5e239a28b0a73b214edd6e80e69d11d1fac030cde3b2d5925cd0d1cd48490cc6",
+        2
+      ],
+      [
+        "43df1eff4ed21de9b23a9e619382ef395d7dd8772a880d71c2533b57950207ad",
+        5
+      ],
+      [
+        "e75c0fa7734728030e91f32ded78d9a349fbbb40ec0ed7fb18bb4ced0f4bdffc",
+        5
+      ],
+      [
+        "2e0bc91572529ee1acf3ba993c39ff2077bcad5115848a4c70c810d735561c60",
+        5
+      ]
+    ],
+    "watermarks": [
+      17
+    ],
+    "offsets": [
+      1200
+    ]
+  },
+  "periods": [
+    {
+      "index": 0,
+      "version": "control",
+      "seconds": 72.2261,
+      "displayPercentStartEnd": [
+        56,
+        55
+      ],
+      "rawCapacityStartEnd": [
+        3165,
+        3114
+      ],
+      "rawCapacityDrop": 51,
+      "rawCapacityDropPercentOfMax": 0.8542,
+      "medianMachineCpuPct": 662.6,
+      "maxCompilerCpuPct": 97.5,
+      "samples": [
+        [
+          0.0,
+          56,
+          3165,
+          5967,
+          false,
+          false,
+          819.1,
+          37.6,
+          null,
+          null,
+          null
+        ],
+        [
+          12.232,
+          55,
+          3154,
+          5971,
+          false,
+          false,
+          761.2,
+          0,
+          null,
+          null,
+          null
+        ],
+        [
+          24.257,
+          55,
+          3154,
+          5971,
+          false,
+          false,
+          697.3,
+          0,
+          null,
+          null,
+          null
+        ],
+        [
+          36.229,
+          55,
+          3154,
+          5971,
+          false,
+          false,
+          662.6,
+          0,
+          null,
+          null,
+          null
+        ],
+        [
+          48.231,
+          55,
+          3154,
+          5971,
+          false,
+          false,
+          325.6,
+          0,
+          null,
+          null,
+          null
+        ],
+        [
+          60.241,
+          55,
+          3154,
+          5971,
+          false,
+          false,
+          447.5,
+          88.3,
+          null,
+          null,
+          null
+        ],
+        [
+          72.226,
+          55,
+          3114,
+          5971,
+          false,
+          false,
+          383.8,
+          97.5,
+          null,
+          null,
+          null
+        ]
+      ]
+    },
+    {
+      "index": 1,
+      "version": "public",
+      "seconds": 72.8294,
+      "displayPercentStartEnd": [
+        55,
+        54
+      ],
+      "rawCapacityStartEnd": [
+        3114,
+        3068
+      ],
+      "rawCapacityDrop": 46,
+      "rawCapacityDropPercentOfMax": 0.7703,
+      "medianMachineCpuPct": 425.8,
+      "maxCompilerCpuPct": 76.2,
+      "processEnergyJ": 0.4017,
+      "processCpuMs": 537.4934,
+      "interruptWakeups": 363,
+      "medianFootprintMiB": 21.5321,
+      "sessionLockedSamples": 0,
+      "visibleNotchSamples": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "samples": [
+        [
+          0.0,
+          55,
+          3114,
+          5971,
+          false,
+          false,
+          638.0,
+          38.4,
+          918054220,
+          1183.04254167,
+          150
+        ],
+        [
+          12.843,
+          54,
+          3098,
+          5971,
+          false,
+          false,
+          425.8,
+          4.6,
+          979090504,
+          1253.536,
+          209
+        ],
+        [
+          24.841,
+          54,
+          3098,
+          5971,
+          false,
+          false,
+          566.1,
+          63.6,
+          1057473632,
+          1355.39070833,
+          277
+        ],
+        [
+          36.833,
+          54,
+          3098,
+          5971,
+          false,
+          false,
+          263.5,
+          0,
+          1118407587,
+          1433.854,
+          333
+        ],
+        [
+          48.826,
+          54,
+          3098,
+          5971,
+          false,
+          false,
+          270.6,
+          76.2,
+          1194164265,
+          1536.128375,
+          395
+        ],
+        [
+          60.826,
+          54,
+          3098,
+          5971,
+          false,
+          false,
+          460.4,
+          0,
+          1255927959,
+          1618.92204167,
+          450
+        ],
+        [
+          72.829,
+          54,
+          3068,
+          5977,
+          false,
+          false,
+          223.7,
+          0,
+          1319775885,
+          1720.53595833,
+          513
+        ]
+      ]
+    },
+    {
+      "index": 2,
+      "version": "candidate",
+      "seconds": 72.1867,
+      "displayPercentStartEnd": [
+        54,
+        53
+      ],
+      "rawCapacityStartEnd": [
+        3068,
+        3045
+      ],
+      "rawCapacityDrop": 23,
+      "rawCapacityDropPercentOfMax": 0.3848,
+      "medianMachineCpuPct": 316.6,
+      "maxCompilerCpuPct": 0,
+      "processEnergyJ": 0.1378,
+      "processCpuMs": 340.0356,
+      "interruptWakeups": 434,
+      "medianFootprintMiB": 20.8446,
+      "sessionLockedSamples": 0,
+      "visibleNotchSamples": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "samples": [
+        [
+          0.0,
+          54,
+          3068,
+          5977,
+          false,
+          false,
+          281.1,
+          0,
+          534600793,
+          705.12208333,
+          125
+        ],
+        [
+          12.181,
+          54,
+          3068,
+          5977,
+          false,
+          false,
+          215.2,
+          0,
+          596012127,
+          832.97329167,
+          286
+        ],
+        [
+          24.179,
+          53,
+          3045,
+          5977,
+          false,
+          false,
+          291.9,
+          0,
+          615639877,
+          886.42279167,
+          345
+        ],
+        [
+          36.182,
+          53,
+          3045,
+          5977,
+          false,
+          false,
+          316.6,
+          0,
+          624974363,
+          915.71366667,
+          392
+        ],
+        [
+          48.189,
+          53,
+          3045,
+          5977,
+          false,
+          false,
+          346.9,
+          0,
+          640691405,
+          965.13795833,
+          447
+        ],
+        [
+          60.182,
+          53,
+          3045,
+          5977,
+          false,
+          false,
+          335.3,
+          0,
+          652373143,
+          999.08325,
+          499
+        ],
+        [
+          72.187,
+          53,
+          3045,
+          5977,
+          false,
+          false,
+          387.6,
+          0,
+          672356240,
+          1045.15770833,
+          559
+        ]
+      ]
+    },
+    {
+      "index": 3,
+      "version": "candidate",
+      "seconds": 72.2231,
+      "displayPercentStartEnd": [
+        53,
+        52
+      ],
+      "rawCapacityStartEnd": [
+        3012,
+        2980
+      ],
+      "rawCapacityDrop": 32,
+      "rawCapacityDropPercentOfMax": 0.5359,
+      "medianMachineCpuPct": 271.6,
+      "maxCompilerCpuPct": 0,
+      "processEnergyJ": 0.1096,
+      "processCpuMs": 243.0579,
+      "interruptWakeups": 321,
+      "medianFootprintMiB": 20.9383,
+      "sessionLockedSamples": 0,
+      "visibleNotchSamples": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "samples": [
+        [
+          0.0,
+          53,
+          3012,
+          5976,
+          false,
+          false,
+          338.6,
+          0,
+          560457409,
+          853.391875,
+          133
+        ],
+        [
+          12.227,
+          53,
+          3012,
+          5976,
+          false,
+          false,
+          253.7,
+          0,
+          571413048,
+          878.839625,
+          186
+        ],
+        [
+          24.36,
+          53,
+          3012,
+          5976,
+          false,
+          false,
+          499.1,
+          0,
+          589275550,
+          927.77454167,
+          247
+        ],
+        [
+          36.247,
+          52,
+          2980,
+          5967,
+          false,
+          false,
+          632.4,
+          0,
+          602942889,
+          952.77220833,
+          289
+        ],
+        [
+          48.25,
+          52,
+          2980,
+          5967,
+          false,
+          false,
+          271.6,
+          0,
+          639544204,
+          1020.42104167,
+          347
+        ],
+        [
+          60.23,
+          52,
+          2980,
+          5967,
+          false,
+          false,
+          182.9,
+          0,
+          651562762,
+          1054.97870833,
+          397
+        ],
+        [
+          72.223,
+          52,
+          2980,
+          5967,
+          false,
+          false,
+          252.6,
+          0,
+          670024862,
+          1096.44975,
+          454
+        ]
+      ]
+    },
+    {
+      "index": 4,
+      "version": "public",
+      "seconds": 72.2649,
+      "displayPercentStartEnd": [
+        52,
+        51
+      ],
+      "rawCapacityStartEnd": [
+        2980,
+        2933
+      ],
+      "rawCapacityDrop": 47,
+      "rawCapacityDropPercentOfMax": 0.7867,
+      "medianMachineCpuPct": 303.8,
+      "maxCompilerCpuPct": 0,
+      "processEnergyJ": 0.6761,
+      "processCpuMs": 1094.6446,
+      "interruptWakeups": 562,
+      "medianFootprintMiB": 21.6727,
+      "sessionLockedSamples": 0,
+      "visibleNotchSamples": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "samples": [
+        [
+          0.0,
+          52,
+          2980,
+          5967,
+          false,
+          false,
+          295.3,
+          0,
+          852082781,
+          1170.27354167,
+          165
+        ],
+        [
+          12.264,
+          52,
+          2980,
+          5967,
+          false,
+          false,
+          237.7,
+          0,
+          902455583,
+          1262.085125,
+          215
+        ],
+        [
+          24.267,
+          52,
+          2958,
+          5977,
+          false,
+          false,
+          192.2,
+          0,
+          954383082,
+          1379.45020833,
+          274
+        ],
+        [
+          36.269,
+          52,
+          2958,
+          5977,
+          false,
+          false,
+          510.2,
+          0,
+          1035667808,
+          1519.17170833,
+          349
+        ],
+        [
+          48.289,
+          52,
+          2958,
+          5977,
+          false,
+          false,
+          335.5,
+          0,
+          1215136484,
+          1776.065625,
+          490
+        ],
+        [
+          60.269,
+          51,
+          2933,
+          5977,
+          false,
+          false,
+          303.8,
+          0,
+          1256282694,
+          1868.19308333,
+          543
+        ],
+        [
+          72.265,
+          51,
+          2933,
+          5977,
+          false,
+          false,
+          440.3,
+          0,
+          1528207751,
+          2264.91816667,
+          727
+        ]
+      ]
+    },
+    {
+      "index": 5,
+      "version": "candidate",
+      "seconds": 72.221,
+      "displayPercentStartEnd": [
+        51,
+        51
+      ],
+      "rawCapacityStartEnd": [
+        2933,
+        2903
+      ],
+      "rawCapacityDrop": 30,
+      "rawCapacityDropPercentOfMax": 0.5016,
+      "medianMachineCpuPct": 308.2,
+      "maxCompilerCpuPct": 0,
+      "processEnergyJ": 0.2238,
+      "processCpuMs": 509.1981,
+      "interruptWakeups": 583,
+      "medianFootprintMiB": 20.8289,
+      "sessionLockedSamples": 0,
+      "visibleNotchSamples": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "samples": [
+        [
+          0.0,
+          51,
+          2933,
+          5977,
+          false,
+          false,
+          282.8,
+          0,
+          616022938,
+          963.07783333,
+          270
+        ],
+        [
+          12.22,
+          51,
+          2933,
+          5977,
+          false,
+          false,
+          412.2,
+          0,
+          731607434,
+          1202.80029167,
+          487
+        ],
+        [
+          24.221,
+          51,
+          2933,
+          5977,
+          false,
+          false,
+          317.3,
+          0,
+          786954862,
+          1326.35904167,
+          629
+        ],
+        [
+          36.215,
+          51,
+          2903,
+          5983,
+          false,
+          false,
+          219.5,
+          0,
+          796124629,
+          1351.42929167,
+          682
+        ],
+        [
+          48.232,
+          51,
+          2903,
+          5983,
+          false,
+          false,
+          252.6,
+          0,
+          810815461,
+          1391.895125,
+          742
+        ],
+        [
+          60.222,
+          51,
+          2903,
+          5983,
+          false,
+          false,
+          347.8,
+          0,
+          821637047,
+          1426.58916667,
+          795
+        ],
+        [
+          72.221,
+          51,
+          2903,
+          5983,
+          false,
+          false,
+          308.2,
+          0,
+          839858207,
+          1472.27591667,
+          853
+        ]
+      ]
+    },
+    {
+      "index": 6,
+      "version": "public",
+      "seconds": 72.2192,
+      "displayPercentStartEnd": [
+        50,
+        50
+      ],
+      "rawCapacityStartEnd": [
+        2880,
+        2847
+      ],
+      "rawCapacityDrop": 33,
+      "rawCapacityDropPercentOfMax": 0.5516,
+      "medianMachineCpuPct": 229.8,
+      "maxCompilerCpuPct": 0,
+      "processEnergyJ": 0.2949,
+      "processCpuMs": 594.7085,
+      "interruptWakeups": 358,
+      "medianFootprintMiB": 21.5165,
+      "sessionLockedSamples": 0,
+      "visibleNotchSamples": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "samples": [
+        [
+          0.0,
+          50,
+          2880,
+          5983,
+          false,
+          false,
+          224.0,
+          0,
+          793389157,
+          1098.03241667,
+          133
+        ],
+        [
+          12.216,
+          50,
+          2880,
+          5983,
+          false,
+          false,
+          242.4,
+          0,
+          842745400,
+          1188.89679167,
+          191
+        ],
+        [
+          24.218,
+          50,
+          2880,
+          5983,
+          false,
+          false,
+          229.8,
+          0,
+          896112078,
+          1302.32729167,
+          253
+        ],
+        [
+          36.213,
+          50,
+          2880,
+          5983,
+          false,
+          false,
+          290.5,
+          0,
+          939755133,
+          1390.95525,
+          311
+        ],
+        [
+          48.216,
+          50,
+          2880,
+          5983,
+          false,
+          false,
+          222.1,
+          0,
+          990275563,
+          1498.68841667,
+          372
+        ],
+        [
+          60.214,
+          50,
+          2847,
+          5983,
+          false,
+          false,
+          217.4,
+          0,
+          1031325188,
+          1589.13066667,
+          428
+        ],
+        [
+          72.219,
+          50,
+          2847,
+          5983,
+          false,
+          false,
+          264.2,
+          0,
+          1088239677,
+          1692.740875,
+          491
+        ]
+      ]
+    },
+    {
+      "index": 7,
+      "version": "public",
+      "seconds": 72.2146,
+      "displayPercentStartEnd": [
+        50,
+        49
+      ],
+      "rawCapacityStartEnd": [
+        2847,
+        2791
+      ],
+      "rawCapacityDrop": 56,
+      "rawCapacityDropPercentOfMax": 0.936,
+      "medianMachineCpuPct": 254.6,
+      "maxCompilerCpuPct": 0,
+      "processEnergyJ": 0.7385,
+      "processCpuMs": 1165.4632,
+      "interruptWakeups": 750,
+      "medianFootprintMiB": 21.3446,
+      "sessionLockedSamples": 0,
+      "visibleNotchSamples": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "samples": [
+        [
+          0.0,
+          50,
+          2847,
+          5983,
+          false,
+          false,
+          320.3,
+          0,
+          580860283,
+          831.13816667,
+          140
+        ],
+        [
+          12.223,
+          49,
+          2824,
+          5983,
+          false,
+          false,
+          337.5,
+          0,
+          631250866,
+          923.238875,
+          209
+        ],
+        [
+          24.225,
+          49,
+          2824,
+          5983,
+          false,
+          false,
+          254.6,
+          0,
+          691277370,
+          1035.98395833,
+          295
+        ],
+        [
+          36.221,
+          49,
+          2824,
+          5983,
+          false,
+          false,
+          231.8,
+          0,
+          741870132,
+          1126.8355,
+          381
+        ],
+        [
+          48.221,
+          49,
+          2824,
+          5983,
+          false,
+          false,
+          225.9,
+          0,
+          791723246,
+          1241.24458333,
+          476
+        ],
+        [
+          60.224,
+          49,
+          2824,
+          5983,
+          false,
+          false,
+          206.6,
+          0,
+          994799919,
+          1547.02495833,
+          662
+        ],
+        [
+          72.215,
+          49,
+          2791,
+          5983,
+          false,
+          false,
+          341.0,
+          0,
+          1319312774,
+          1996.601375,
+          890
+        ]
+      ]
+    },
+    {
+      "index": 8,
+      "version": "candidate",
+      "seconds": 72.2206,
+      "displayPercentStartEnd": [
+        49,
+        48
+      ],
+      "rawCapacityStartEnd": [
+        2791,
+        2768
+      ],
+      "rawCapacityDrop": 23,
+      "rawCapacityDropPercentOfMax": 0.3844,
+      "medianMachineCpuPct": 225.3,
+      "maxCompilerCpuPct": 0,
+      "processEnergyJ": 0.339,
+      "processCpuMs": 740.6503,
+      "interruptWakeups": 838,
+      "medianFootprintMiB": 21.1571,
+      "sessionLockedSamples": 0,
+      "visibleNotchSamples": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "samples": [
+        [
+          0.0,
+          49,
+          2791,
+          5983,
+          false,
+          false,
+          296.6,
+          0,
+          620839974,
+          868.4135,
+          437
+        ],
+        [
+          12.221,
+          49,
+          2791,
+          5983,
+          false,
+          false,
+          248.2,
+          0,
+          688814268,
+          1008.38391667,
+          609
+        ],
+        [
+          24.22,
+          49,
+          2791,
+          5983,
+          false,
+          false,
+          240.2,
+          0,
+          806197111,
+          1253.35991667,
+          876
+        ],
+        [
+          36.224,
+          48,
+          2768,
+          5983,
+          false,
+          false,
+          210.7,
+          0,
+          857357985,
+          1351.92683333,
+          981
+        ],
+        [
+          48.225,
+          48,
+          2768,
+          5983,
+          false,
+          false,
+          225.3,
+          0,
+          937127640,
+          1523.64208333,
+          1160
+        ],
+        [
+          60.227,
+          48,
+          2768,
+          5983,
+          false,
+          false,
+          196.8,
+          0,
+          947488137,
+          1556.86458333,
+          1215
+        ],
+        [
+          72.221,
+          48,
+          2768,
+          5983,
+          false,
+          false,
+          187.6,
+          0,
+          959871926,
+          1609.06379167,
+          1275
+        ]
+      ]
+    },
+    {
+      "index": 9,
+      "version": "control",
+      "seconds": 72.296,
+      "displayPercentStartEnd": [
+        48,
+        47
+      ],
+      "rawCapacityStartEnd": [
+        2768,
+        2714
+      ],
+      "rawCapacityDrop": 54,
+      "rawCapacityDropPercentOfMax": 0.9011,
+      "medianMachineCpuPct": 204.0,
+      "maxCompilerCpuPct": 59.8,
+      "samples": [
+        [
+          0.0,
+          48,
+          2768,
+          5983,
+          false,
+          false,
+          204.0,
+          0,
+          null,
+          null,
+          null
+        ],
+        [
+          12.124,
+          48,
+          2752,
+          5996,
+          false,
+          false,
+          202.0,
+          14.7,
+          null,
+          null,
+          null
+        ],
+        [
+          24.109,
+          48,
+          2752,
+          5996,
+          false,
+          false,
+          195.0,
+          0,
+          null,
+          null,
+          null
+        ],
+        [
+          36.111,
+          48,
+          2752,
+          5996,
+          false,
+          false,
+          255.2,
+          0,
+          null,
+          null,
+          null
+        ],
+        [
+          48.108,
+          48,
+          2752,
+          5996,
+          false,
+          false,
+          200.7,
+          0,
+          null,
+          null,
+          null
+        ],
+        [
+          60.107,
+          48,
+          2752,
+          5996,
+          false,
+          false,
+          294.7,
+          59.8,
+          null,
+          null,
+          null
+        ],
+        [
+          72.296,
+          47,
+          2714,
+          5988,
+          false,
+          false,
+          611.4,
+          1.1,
+          null,
+          null,
+          null
+        ]
+      ]
+    }
+  ],
+  "adjacentPairs": [
+    {
+      "periods": [
+        1,
+        2
+      ],
+      "order": [
+        "public",
+        "candidate"
+      ],
+      "candidateMinusPublic": {
+        "rawCapacityDrop": -23,
+        "rawCapacityDropPercentOfMax": -0.3855,
+        "processEnergyJ": -0.2639,
+        "processCpuMs": -197.4578,
+        "interruptWakeups": 71,
+        "medianFootprintMiB": -0.6875
+      }
+    },
+    {
+      "periods": [
+        3,
+        4
+      ],
+      "order": [
+        "candidate",
+        "public"
+      ],
+      "candidateMinusPublic": {
+        "rawCapacityDrop": -15,
+        "rawCapacityDropPercentOfMax": -0.2508,
+        "processEnergyJ": -0.5665,
+        "processCpuMs": -851.5867,
+        "interruptWakeups": -241,
+        "medianFootprintMiB": -0.7344
+      }
+    },
+    {
+      "periods": [
+        5,
+        6
+      ],
+      "order": [
+        "candidate",
+        "public"
+      ],
+      "candidateMinusPublic": {
+        "rawCapacityDrop": -3,
+        "rawCapacityDropPercentOfMax": -0.05,
+        "processEnergyJ": -0.0711,
+        "processCpuMs": -85.5104,
+        "interruptWakeups": 225,
+        "medianFootprintMiB": -0.6876
+      }
+    },
+    {
+      "periods": [
+        7,
+        8
+      ],
+      "order": [
+        "public",
+        "candidate"
+      ],
+      "candidateMinusPublic": {
+        "rawCapacityDrop": -33,
+        "rawCapacityDropPercentOfMax": -0.5516,
+        "processEnergyJ": -0.3995,
+        "processCpuMs": -424.8129,
+        "interruptWakeups": 88,
+        "medianFootprintMiB": -0.1875
+      }
+    }
+  ],
+  "groups": {
+    "control": {
+      "rawCapacityDrop": {
+        "median": 52.5,
+        "min": 51,
+        "max": 54
+      },
+      "rawCapacityDropPercentOfMax": {
+        "median": 0.8777,
+        "min": 0.8542,
+        "max": 0.9011
+      },
+      "medianMachineCpuPct": {
+        "median": 433.3,
+        "min": 204.0,
+        "max": 662.6
+      },
+      "maxCompilerCpuPct": {
+        "median": 78.65,
+        "min": 59.8,
+        "max": 97.5
+      }
+    },
+    "public": {
+      "rawCapacityDrop": {
+        "median": 46.5,
+        "min": 33,
+        "max": 56
+      },
+      "rawCapacityDropPercentOfMax": {
+        "median": 0.7785,
+        "min": 0.5516,
+        "max": 0.936
+      },
+      "medianMachineCpuPct": {
+        "median": 279.2,
+        "min": 229.8,
+        "max": 425.8
+      },
+      "maxCompilerCpuPct": {
+        "median": 0.0,
+        "min": 0,
+        "max": 76.2
+      },
+      "processEnergyJ": {
+        "median": 0.5389,
+        "min": 0.2949,
+        "max": 0.7385
+      },
+      "processCpuMs": {
+        "median": 844.6766,
+        "min": 537.4934,
+        "max": 1165.4632
+      },
+      "medianFootprintMiB": {
+        "median": 21.5243,
+        "min": 21.3446,
+        "max": 21.6727
+      },
+      "interruptWakeups": {
+        "median": 462.5,
+        "min": 358,
+        "max": 750
+      }
+    },
+    "candidate": {
+      "rawCapacityDrop": {
+        "median": 26.5,
+        "min": 23,
+        "max": 32
+      },
+      "rawCapacityDropPercentOfMax": {
+        "median": 0.4432,
+        "min": 0.3844,
+        "max": 0.5359
+      },
+      "medianMachineCpuPct": {
+        "median": 289.9,
+        "min": 225.3,
+        "max": 316.6
+      },
+      "maxCompilerCpuPct": {
+        "median": 0.0,
+        "min": 0,
+        "max": 0
+      },
+      "processEnergyJ": {
+        "median": 0.1808,
+        "min": 0.1096,
+        "max": 0.339
+      },
+      "processCpuMs": {
+        "median": 424.6168,
+        "min": 243.0579,
+        "max": 740.6503
+      },
+      "medianFootprintMiB": {
+        "median": 20.8914,
+        "min": 20.8289,
+        "max": 21.1571
+      },
+      "interruptWakeups": {
+        "median": 508.5,
+        "min": 321,
+        "max": 838
+      }
+    }
+  },
+  "physicalBatteryVerdict": "INCONCLUSIVE",
+  "limits": [
+    "Actual discharging internal battery on one shared Apple Silicon host. This does not isolate app-only battery drain.",
+    "72-second measurement windows, 9-second warm-up, four public/candidate pairs and two no-app controls; percentage readings are quantized. AppleRawCurrentCapacity and AppleRawMaxCapacity are used only as relative readings; private raw units are not labeled mAh.",
+    "Each run used an independent synthetic home, disabled updates, denied network and completed the same three observed usage changes. The process resource counter measures the selected PID only.",
+    "Input was synthesized locally; no network, personal data, iPhone, or APNs delivery was part of this measurement."
+  ],
+  "sampleFields": [
+    "secondsFromFirst",
+    "chargePercent",
+    "rawCapacity",
+    "rawMaximum",
+    "externalPower",
+    "charging",
+    "machineCpuPct",
+    "compilerCpuPct",
+    "pidEnergyNanojoules",
+    "pidCpuMs",
+    "pidInterruptWakeups"
+  ],
+  "physicalBatteryInterpretation": "All four adjacent candidate periods had lower raw pack discharge and reported process energy. The two no-app controls measured more discharge than the public app median. Host CPU varied and the first public run included compiler activity. This single shared-host experiment does not establish app-only battery savings or runtime.",
+  "repositoryDriverSmoke": {
+    "path": "Scripts/rust_migration/benchmark_macos_battery.py",
+    "sha256": "911d3185fc62df6c7b2bea5c20613674c818ebbe6b32df13cca5e951078a401b",
+    "receiptSha256": "42b878ac9d8018d99f61709a2b6d9b2fd6749cf15b318f17a74dac06164f8b87",
+    "scope": "The portable version of the acquisition driver independently completed a real 72-second candidate cycle after the comparison and reproduced the identical schema, events and checkpoint. This additional run is excluded from the paired measurements."
+  }
+}
