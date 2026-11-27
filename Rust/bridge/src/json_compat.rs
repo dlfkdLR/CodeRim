@@ -27,19 +27,46 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for Object<T> {
 // measurements with Foundation-specific coercions. Restrict the document to
 // ordinary metadata numbers that both JSON implementations accept.
 pub(super) fn supported(bytes: &[u8], valid_text: impl Fn(&[u8]) -> bool) -> bool {
+    supported_strings::<false>(bytes, valid_text)
+}
+
+// Borrowed projections may also skip ordinary JSON escapes in unrelated strings.
+// Unicode escapes stay with Foundation, including its surrogate-pair semantics.
+pub(super) fn supported_strings<const SIMPLE_ESCAPES: bool>(
+    bytes: &[u8],
+    valid_text: impl Fn(&[u8]) -> bool,
+) -> bool {
     let mut i = 0;
     let mut depth = 0_u16;
     while i < bytes.len() {
         match bytes[i] {
             b'"' => {
-                let rest = &bytes[i + 1..];
-                let Some(n) = memchr::memchr3(b'"', b'\\', 0, rest) else {
-                    return false;
-                };
-                if rest[n] != b'"' || !valid_text(&rest[..n]) || rest[..n].iter().any(|b| *b < 32) {
-                    return false;
+                i += 1;
+                loop {
+                    let rest = &bytes[i..];
+                    let Some(n) = memchr::memchr3(b'"', b'\\', 0, rest) else {
+                        return false;
+                    };
+                    if (rest[n] != b'"' && !SIMPLE_ESCAPES)
+                        || !valid_text(&rest[..n])
+                        || rest[..n].iter().any(|b| *b < 32)
+                    {
+                        return false;
+                    }
+                    i += n + 1;
+                    if rest[n] == b'"' {
+                        break;
+                    }
+                    if rest[n] != b'\\'
+                        || !matches!(
+                            bytes.get(i),
+                            Some(b'"' | b'\\' | b'/' | b'b' | b'f' | b'n' | b'r' | b't')
+                        )
+                    {
+                        return false;
+                    }
+                    i += 1;
                 }
-                i += n + 2;
             }
             b'-' | b'0'..=b'9' => {
                 let start = i;

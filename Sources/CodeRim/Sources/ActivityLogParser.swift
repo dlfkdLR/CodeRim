@@ -208,20 +208,43 @@ struct ClaudeActivityParser {
     }
 
     private mutating func countTools(in line: Data, on day: Date) {
-        guard LogBytes.contains(line, Self.toolUse),
-              let record = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
+        guard LogBytes.contains(line, Self.toolUse) else { return }
+        #if CODERIM_RUST_ACCOUNTING
+        let projected = withUnsafeMutablePointer(to: &self) { parser in
+            var context = (parser, day)
+            return withUnsafeMutablePointer(to: &context) { context in
+                line.withUnsafeBytes { bytes in
+                    cr_claude_activity_tools(bytes.bindMemory(to: UInt8.self).baseAddress, bytes.count, context) {
+                        context, name, id, skill in
+                        guard let context else { return }
+                        let (parser, day) = context.assumingMemoryBound(to: (UnsafeMutablePointer<ClaudeActivityParser>, Date).self).pointee
+                        func text(_ field: CRActivityToolText) -> String {
+                            String(decoding: UnsafeBufferPointer(start: field.data, count: field.count), as: UTF8.self)
+                        }
+                        parser.pointee.countTool(text(name), id: text(id), skill: text(skill), day: day)
+                    }
+                }
+            }
+        }
+        if projected { return }
+        #endif
+        guard let record = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
               let message = record["message"] as? [String: Any],
               let blocks = message["content"] as? [[String: Any]] else { return }
         for block in blocks where block["type"] as? String == "tool_use" {
             guard let name = block["name"] as? String, !name.isEmpty else { continue }
-            // Calls without an id remain countable; only an explicit id proves a duplicate.
-            if let id = block["id"] as? String, !id.isEmpty, !seenToolCalls.insert(id).inserted { continue }
-            let tool = ActivityNames.tool(name)
-            activity.edit(day) { $0.tools[tool, default: 0] += 1 }
-            if name == "Skill", let input = block["input"] as? [String: Any],
-               let skill = input["skill"] as? String, !skill.isEmpty {
-                activity.edit(day) { $0.skills[skill, default: 0] += 1 }
-            }
+            countTool(name, id: block["id"] as? String,
+                      skill: (block["input"] as? [String: Any])?["skill"] as? String, day: day)
+        }
+    }
+
+    private mutating func countTool(_ name: String, id: String?, skill: @autoclosure () -> String?, day: Date) {
+        // Calls without an id remain countable; only an explicit id proves a duplicate.
+        if let id, !id.isEmpty, !seenToolCalls.insert(id).inserted { return }
+        let tool = ActivityNames.tool(name)
+        activity.edit(day) { $0.tools[tool, default: 0] += 1 }
+        if name == "Skill", let skill = skill(), !skill.isEmpty {
+            activity.edit(day) { $0.skills[skill, default: 0] += 1 }
         }
     }
 
