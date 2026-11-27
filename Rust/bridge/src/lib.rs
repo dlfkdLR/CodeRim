@@ -22,6 +22,8 @@ mod claude_json;
 #[cfg(target_os = "macos")]
 mod claude_transcript_status;
 #[cfg(target_os = "macos")]
+mod codex_activity_session;
+#[cfg(target_os = "macos")]
 mod companion_export;
 #[cfg(target_os = "macos")]
 mod copilot_quota;

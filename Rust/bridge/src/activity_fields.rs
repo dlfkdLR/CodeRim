@@ -39,8 +39,8 @@ pub(super) fn is_import_candidate(bytes: &[u8]) -> bool {
 
 #[repr(C)]
 pub struct Field {
-    start: isize,
-    end: usize,
+    pub(super) start: isize,
+    pub(super) end: usize,
 }
 
 impl Field {
@@ -71,11 +71,15 @@ pub unsafe extern "C" fn cr_activity_field(
     }
     let bytes = unsafe { slice::from_raw_parts(data, length) };
     let marker = unsafe { slice::from_raw_parts(marker, marker_length) };
+    find_field(bytes, marker, from, quoted)
+}
+
+fn find_field(bytes: &[u8], marker: &[u8], from: usize, quoted: bool) -> Field {
     let Some(relative) = memmem::find(&bytes[from..], marker) else {
         return Field::ABSENT;
     };
     let found = from + relative;
-    let start = found + marker_length;
+    let start = found + marker.len();
     if !quoted {
         return Field {
             start: found as isize,
@@ -98,10 +102,10 @@ pub unsafe extern "C" fn cr_activity_field(
 
 #[repr(C)]
 pub struct CodexRecord {
-    kind: u8,
-    stamp: Field,
-    primary: Field,
-    secondary: Field,
+    pub(super) kind: u8,
+    pub(super) stamp: Field,
+    pub(super) primary: Field,
+    pub(super) secondary: Field,
 }
 
 // Several types may coexist in a rollout row. Preserve the published marker
@@ -134,7 +138,10 @@ fn codex_kind(bytes: &[u8]) -> u8 {
     }
 }
 
-fn codex_skill(bytes: &[u8]) -> Field {
+pub(super) fn codex_skill(
+    bytes: &[u8],
+    contains_backslash: impl Fn(&[u8]) -> Option<bool>,
+) -> Field {
     const DIR: &[u8] = b"/skills/";
     let mut offset = 0;
     while let Some(pos) = memmem::find(&bytes[offset..], DIR) {
@@ -145,10 +152,11 @@ fn codex_skill(bytes: &[u8]) -> Field {
         };
         if end != 0 && tail[end + 1..].starts_with(b"SKILL.md") {
             if tail[..end].contains(&b'\\') {
-                if !tail[..end].is_ascii() {
-                    return Field::NATIVE;
+                match contains_backslash(&tail[..end]) {
+                    Some(true) => continue,
+                    Some(false) => {}
+                    None => return Field::NATIVE,
                 }
-                continue;
             }
             return Field {
                 start: offset as isize,
@@ -164,20 +172,24 @@ fn codex_skill(bytes: &[u8]) -> Field {
 /// before changing them. A negative field is absent (-1) or escaped (-2).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cr_codex_activity_record(data: *const u8, length: usize) -> CodexRecord {
+    let bytes = if data.is_null() || length == 0 || length > isize::MAX as usize {
+        &[]
+    } else {
+        unsafe { slice::from_raw_parts(data, length) }
+    };
+    codex_record(bytes)
+}
+
+pub(super) fn codex_record(bytes: &[u8]) -> CodexRecord {
     let mut record = CodexRecord {
         kind: 0,
         stamp: Field::ABSENT,
         primary: Field::ABSENT,
         secondary: Field::ABSENT,
     };
-    if data.is_null() || length == 0 || length > isize::MAX as usize {
-        return record;
-    }
-    let bytes = unsafe { slice::from_raw_parts(data, length) };
+
     record.kind = codex_kind(bytes);
-    let string = |marker: &[u8]| unsafe {
-        cr_activity_field(data, length, marker.as_ptr(), marker.len(), 0, true)
-    };
+    let string = |marker: &[u8]| find_field(bytes, marker, 0, true);
     match record.kind {
         5 => {
             record.primary = string(br#""id":""#);
@@ -195,7 +207,8 @@ pub unsafe extern "C" fn cr_codex_activity_record(data: *const u8, length: usize
                     2 => {
                         record.primary = string(br#""name":""#);
                         if record.primary.start != -1 {
-                            record.secondary = codex_skill(bytes);
+                            record.secondary =
+                                codex_skill(bytes, |name| name.is_ascii().then_some(true));
                         }
                     }
                     _ => record.primary = string(br#""text":""#),

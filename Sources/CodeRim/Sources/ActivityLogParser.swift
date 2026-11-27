@@ -267,6 +267,18 @@ struct CodexActivityParser {
                           "\"type\":\"function_call\"", "\"type\":\"custom_tool_call\"",
                           "\"role\":\"user\""]
 
+    #if CODERIM_RUST_ACCOUNTING
+    private var reduction: CodexFileReduction
+    init(days: ActivityDayResolver) { reduction = CodexFileReduction(days: days) }
+
+    var activity: FileActivity { reduction.activity() }
+    var rawSessionID: String? { reduction.sessionID }
+    mutating func consume(_ line: Data) {
+        if !isKnownUniquelyReferenced(&reduction) { reduction = CodexFileReduction(copying: reduction) }
+        reduction.consume(line)
+    }
+    func finish() -> FileActivity { reduction.activity() }
+    #else
     private static let sessionMeta = Data("\"type\":\"session_meta\"".utf8)
     private static let sessionIDKey = Data("\"id\":\"".utf8)
     private static let parentThread = Data("\"parent_thread_id\":\"".utf8)
@@ -303,48 +315,6 @@ struct CodexActivityParser {
     private enum Kind: UInt8 { case ignored, message, tool, turn, settings, metadata }
 
     mutating func consume(_ line: Data) {
-#if CODERIM_RUST_ACCOUNTING
-        let (kind, day, first, second) = line.withUnsafeBytes { raw -> (Kind, Date?, String?, String?) in
-            let bytes = raw.bindMemory(to: UInt8.self)
-            let record = cr_codex_activity_record(bytes.baseAddress, bytes.count)
-            let kind = Kind(rawValue: record.kind) ?? .ignored
-            func value(_ field: CRActivityField, _ marker: Data) -> String? {
-                if field.start == -2 { return LogBytes.string(after: marker, in: line)?.value }
-                guard field.start >= 0 else { return nil }
-                return String(decoding: bytes[field.start..<field.end], as: UTF8.self)
-            }
-            let day: Date?
-            switch kind {
-            case .turn, .tool, .message:
-                guard let stamp = value(record.stamp, Self.timestamp), let valid = days.day(of: stamp) else {
-                    return (kind, nil, nil, nil)
-                }
-                day = valid
-            default: day = nil
-            }
-            var first: String?
-            var second: String?
-            switch kind {
-            case .metadata:
-                first = value(record.primary, Self.sessionIDKey)
-                second = value(record.secondary, Self.parentThread)
-            case .settings: first = value(record.primary, Self.tier)
-            case .turn:
-                first = value(record.primary, Self.model)
-                if first?.isEmpty == false { second = value(record.secondary, Self.effort) }
-            case .tool:
-                first = value(record.primary, Self.name)
-                guard first?.isEmpty == false else { break }
-                if record.secondary.start == -2 { second = skillRead(in: line) }
-                else if record.secondary.start >= 0 {
-                    second = String(decoding: bytes[record.secondary.start..<record.secondary.end], as: UTF8.self)
-                }
-            case .message: if !isSubagent { first = value(record.primary, Self.text) }
-            case .ignored: break
-            }
-            return (kind, day, first, second)
-        }
-#else
         let kind: Kind
         if LogBytes.contains(line, Self.sessionMeta) { kind = .metadata }
         else if LogBytes.contains(line, Self.settings) { kind = .settings }
@@ -374,7 +344,6 @@ struct CodexActivityParser {
         case .message: if !isSubagent { first = LogBytes.string(after: Self.text, in: line)?.value }
         case .ignored: break
         }
-#endif
         if kind == .metadata {
             rawSessionID = first ?? rawSessionID
             isSubagent = second.map { !$0.isEmpty } ?? false
@@ -421,4 +390,102 @@ struct CodexActivityParser {
     }
 
     func finish() -> FileActivity { activity }
+    #endif
 }
+
+#if CODERIM_RUST_ACCOUNTING
+/// The reducer owns all session transitions and counts. The host supplies local
+/// calendar days and Swift's Character-aware display names and canonical keys.
+private final class CodexFileReduction {
+    private let handle: OpaquePointer
+    private let days: ActivityDayResolver
+    private var names: [String] = []
+    private var identities: [String: Int] = [:]
+
+    init(days: ActivityDayResolver) {
+        self.days = days
+        handle = cr_codex_activity_session_new()!
+    }
+
+    init(copying other: CodexFileReduction) {
+        days = other.days
+        names = other.names
+        identities = other.identities
+        handle = cr_codex_activity_session_copy(other.handle)!
+    }
+
+    deinit { cr_codex_activity_session_free(handle) }
+
+    var sessionID: String? {
+        withExtendedLifetime(self) {
+            let id = cr_codex_activity_session_id(handle)
+            guard let data = id.data else { return nil }
+            return String(decoding: UnsafeBufferPointer(start: data, count: id.count), as: UTF8.self)
+        }
+    }
+
+    private func label(_ name: String, spelling slot: UnsafeMutableRawPointer?) -> Int {
+        if let id = identities[name] {
+            if !name.utf8.elementsEqual(names[id].utf8) {
+                var spelling = name
+                spelling.withUTF8 { cr_codex_activity_label_spelling(slot, $0.baseAddress, $0.count) }
+            }
+            return id
+        }
+        let id = names.count
+        names.append(name)
+        identities[name] = id
+        return id
+    }
+
+    func consume(_ line: Data) {
+        let context = Unmanaged.passUnretained(self).toOpaque()
+        line.withUnsafeBytes { bytes in
+            cr_codex_activity_session_consume(handle, bytes.bindMemory(to: UInt8.self).baseAddress, bytes.count, context,
+                { context, data, count in
+                    let reducer = Unmanaged<CodexFileReduction>.fromOpaque(context!).takeUnretainedValue()
+                    let stamp = String(decoding: UnsafeBufferPointer(start: data, count: count), as: UTF8.self)
+                    return reducer.days.day(of: stamp)?.timeIntervalSinceReferenceDate ?? .nan
+                }, { context, kind, data, count, slot in
+                    let reducer = Unmanaged<CodexFileReduction>.fromOpaque(context!).takeUnretainedValue()
+                    let raw = String(decoding: UnsafeBufferPointer(start: data, count: count), as: UTF8.self)
+                    let name: String
+                    switch Int(kind) {
+                    case CR_ACTIVITY_TOOL_NAME: name = ActivityNames.tool(raw)
+                    case CR_ACTIVITY_EFFORT_NAME: name = ActivityNames.effort(raw)
+                    case CR_ACTIVITY_SPEED_NAME: name = ActivityNames.speed(raw)
+                    default: name = raw
+                    }
+                    return reducer.label(name, spelling: slot)
+                }, { kind, data, count in
+                    let raw = String(decoding: UnsafeBufferPointer(start: data, count: count), as: UTF8.self)
+                    if Int(kind) == CR_ACTIVITY_BACKSLASH { return raw.contains("\\") }
+                    return raw.hasPrefix("<") || raw.hasPrefix("# AGENTS")
+                })
+        }
+    }
+
+    func activity() -> FileActivity {
+        var result = (activity: FileActivity(), names: names)
+        withUnsafeMutablePointer(to: &result) { output in
+            cr_codex_activity_session_counts(handle, output) { context, kind, day, identity, spelling, count in
+                let output = context!.assumingMemoryBound(to: (activity: FileActivity, names: [String]).self)
+                let name = spelling.data.map {
+                    String(decoding: UnsafeBufferPointer(start: $0, count: spelling.count), as: UTF8.self)
+                } ?? output.pointee.names[identity]
+                let date = Date(timeIntervalSinceReferenceDate: day)
+                switch Int(kind) {
+                case CR_ACTIVITY_MESSAGES: output.pointee.activity.edit(date) { $0.messagesByModel[name] = Int(count) }
+                case CR_ACTIVITY_TOOLS: output.pointee.activity.edit(date) { $0.tools[name] = Int(count) }
+                case CR_ACTIVITY_SKILLS: output.pointee.activity.edit(date) { $0.skills[name] = Int(count) }
+                case CR_ACTIVITY_MODELS: output.pointee.activity.traits.models[name] = Int(count)
+                case CR_ACTIVITY_EFFORTS: output.pointee.activity.traits.efforts[name] = Int(count)
+                case CR_ACTIVITY_SPEEDS: output.pointee.activity.traits.speeds[name] = Int(count)
+                default: break
+                }
+            }
+        }
+        return result.activity
+    }
+}
+#endif

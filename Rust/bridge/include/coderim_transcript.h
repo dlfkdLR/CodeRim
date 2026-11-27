@@ -45,6 +45,28 @@ CRCodexActivityRecord cr_codex_activity_record(const uint8_t *data, size_t lengt
 /* UTF-8 text is borrowed only until the synchronous callback returns. On false
    no callbacks occurred and the caller can decode the complete row with Foundation. */
 typedef struct { const uint8_t *data; size_t count; } CRActivityToolText;
+typedef struct CRCodexActivitySession CRCodexActivitySession;
+CRCodexActivitySession *cr_codex_activity_session_new(void);
+CRCodexActivitySession *cr_codex_activity_session_copy(const CRCodexActivitySession *session);
+void cr_codex_activity_session_free(CRCodexActivitySession *session);
+enum { CR_ACTIVITY_RAW, CR_ACTIVITY_TOOL_NAME, CR_ACTIVITY_EFFORT_NAME, CR_ACTIVITY_SPEED_NAME };
+enum { CR_ACTIVITY_MESSAGE_PREFIX, CR_ACTIVITY_BACKSLASH };
+/* Within the name callback only, copy an alternate canonical spelling to the
+   reducer. The reducer drops spellings as soon as counting no longer needs them. */
+void cr_codex_activity_label_spelling(void *slot, const uint8_t *bytes, size_t length);
+typedef double (*CRActivityDay)(void *context, const uint8_t *stamp, size_t length);
+typedef size_t (*CRActivityName)(void *context, uint8_t transform, const uint8_t *raw, size_t length, void *slot);
+typedef bool (*CRActivityTextTest)(uint8_t test, const uint8_t *raw, size_t length);
+/* Callbacks see borrowed bytes only during the call. The day uses the caller's
+   calendar. Names supply Swift canonical equality and the spelling to display. */
+void cr_codex_activity_session_consume(CRCodexActivitySession *session, const uint8_t *bytes, size_t length,
+                                      void *context, CRActivityDay day, CRActivityName name, CRActivityTextTest test);
+/* ID borrows from the immutable session until its next mutation or release. */
+CRActivityToolText cr_codex_activity_session_id(const CRCodexActivitySession *session);
+enum { CR_ACTIVITY_MESSAGES, CR_ACTIVITY_TOOLS, CR_ACTIVITY_SKILLS,
+       CR_ACTIVITY_MODELS, CR_ACTIVITY_EFFORTS, CR_ACTIVITY_SPEEDS };
+typedef void (*CRActivityCount)(void *context, uint8_t kind, double day, size_t identity, CRActivityToolText spelling, int64_t count);
+void cr_codex_activity_session_counts(const CRCodexActivitySession *session, void *context, CRActivityCount visit);
 typedef void (*CRActivityTool)(void *context, CRActivityToolText name, CRActivityToolText id, CRActivityToolText skill);
 bool cr_claude_activity_tools(const uint8_t *input, size_t length, void *context, CRActivityTool accept);
 /* True when a bounded local Codex log row contains the accounting, metadata or image
