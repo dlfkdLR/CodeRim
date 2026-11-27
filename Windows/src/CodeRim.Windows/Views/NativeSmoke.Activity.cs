@@ -37,11 +37,11 @@ internal static partial class NativeSmoke
                 File.WriteAllText(Path.Combine(root, "sessions", "b.json"), reverse ? older : newer);
                 Require(ClaudeSessions.Read().Single().State == "waiting", "Duplicate Claude registry selection depends on enumeration order");
             }
-            store.UpdateSessionActivity([new("turn", "codex", "Fixture", "busy", now.AddMinutes(-3))]);
-            store.UpdateSessionActivity([new("turn", "codex", "Fixture", "busy", now)]);
+            store.UpdateSessionActivity(new SessionActivity[] { new("turn", "codex", "Fixture", "busy", now.AddMinutes(-3)) });
+            store.UpdateSessionActivity(new SessionActivity[] { new("turn", "codex", "Fixture", "busy", now) });
             Require(store.Sessions.Single().Since == now, "New Codex turn kept the previous turn start");
-            store.UpdateSessionActivity([new("turn", "claude", "Fixture", "busy", now.AddMinutes(-3))]);
-            store.UpdateSessionActivity([new("turn", "claude", "Fixture", "busy", now)]);
+            store.UpdateSessionActivity(new SessionActivity[] { new("turn", "claude", "Fixture", "busy", now.AddMinutes(-3)) });
+            store.UpdateSessionActivity(new SessionActivity[] { new("turn", "claude", "Fixture", "busy", now) });
             Require(store.Sessions.Single().Since == now.AddMinutes(-3), "Continuing Claude tools reset elapsed turn time");
         }
         finally

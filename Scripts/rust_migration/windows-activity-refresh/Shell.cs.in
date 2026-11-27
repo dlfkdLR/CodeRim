@@ -1,0 +1,22 @@
+using CodeRim.Core.Services;
+
+sealed record Options(bool SubagentSound, bool CompletionSound, string FinishedSound, string BlockedSound);
+sealed class FakeSettings(Options value)
+{
+    public Options Current { get; } = value;
+}
+static class SessionChime
+{
+    internal static Action<string>? Played;
+    public static void Play(string sound) => Played?.Invoke(sound);
+}
+sealed class Store(IReadOnlyList<SessionActivity> prior, Options options)
+{
+    private readonly FakeSettings settings = new(options);
+    public IReadOnlyList<SessionActivity> Sessions { get; private set; } = prior;
+    public event Action<SessionActivity>? SessionAttentionRequested;
+    public event Action? Published;
+    private void Changed() => Published?.Invoke();
+
+    // ACTUAL_UPDATE_METHOD
+}
