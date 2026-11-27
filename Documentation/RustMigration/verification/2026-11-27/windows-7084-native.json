@@ -1,0 +1,227 @@
+{
+  "schema": 1,
+  "run": 45941997801,
+  "commit": "7084e8024337d5c8946356fae936c46840bcd860",
+  "public": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "platforms": {
+    "x64": {
+      "scanner": {
+        "job": 140318168669,
+        "result": "failure",
+        "logSha256": "ccbf8a5a42de7e6ab7bd44fc37c8275d96af6e6667c722abee42935feb087fe1",
+        "failed": [
+          "Build and compare the opt-in standalone Windows companion"
+        ],
+        "error": "native cost history usage text: reference exited 0; host-isolated CLI exited 1 reporting CodeRimSnapshotHost could not be found. JSON check immediately preceded this case and passed.",
+        "skipped": [
+          "Compare published WPF activity transitions and callbacks",
+          "Compare anonymous release selection and startup with the shipped Windows checker"
+        ]
+      },
+      "installer": {
+        "job": 140318168455,
+        "result": "success",
+        "archive": {
+          "id": 15173655931,
+          "verifiedMembers": 586,
+          "bytes": 9274059,
+          "sha256": "231b1936c00a0045d5904256dda1738a88a54551ad4246bf3e5143479ad54e7b"
+        },
+        "msiChecks": [
+          "signed-legacy-installation-rejected-before-write",
+          "initial-msi-install",
+          "injected-upgrade-failure-restores-binaries-registration-path-shortcut",
+          "installed-rust-cli-and-owned-compatibility-host",
+          "upgrade-current-version",
+          "downgrade-refused-without-changes",
+          "installed-native-ui-and-pinned-worker",
+          "uninstall-preserves-user-data-and-unrelated-path",
+          "portable-migration-failure-restores-files-path-shortcut",
+          "portable-migration-and-repair-keep-one-cli-path",
+          "portable-migration-uninstall-preserves-data-and-unrelated-path",
+          "public-2.1.11-msi-reproduces-duplicate-portable-path",
+          "public-2.1.11-failed-upgrade-restores-installation",
+          "public-2.1.11-upgrade-replaces-all-candidate-binaries",
+          "public-upgrade-uninstall-preserves-user-data-and-path"
+        ],
+        "msixChecks": [
+          "installs-per-user-without-administrator",
+          "cli-aliases-registered",
+          "both-cli-aliases-run-cli",
+          "cli-regressions-through-alias",
+          "packaged-native-ui-smoke",
+          "uninstall-removes-app-and-aliases"
+        ],
+        "publicPhases": [
+          "published-installed-and-profile-read",
+          "failed-upgrade-restored-public-registration-binaries-and-profile",
+          "upgraded-candidate-loaded-preserved-profile",
+          "direct-downgrade-refused-with-data-intact",
+          "published-msi-reinstalled-and-profile-read",
+          "published-uninstalled-and-data-preserved"
+        ],
+        "footprint": {
+          "published": {
+            "files": 18,
+            "bytes": 210192960.0,
+            "publicCliBytes": 85476168
+          },
+          "candidateMsiBytes": 142602240,
+          "publishedMsiBytes": 144211968,
+          "candidate": {
+            "files": 22,
+            "bytes": 206278144.0,
+            "publicCliBytes": 497664
+          }
+        },
+        "installDeltaBytes": -3914816,
+        "packages": [
+          {
+            "name": "CodeRim-Windows-2.1.41-x64.zip",
+            "bytes": 150261435,
+            "sha256": "07f371e3536ba07956ca43c72fd274255d498a49e8a779d2d07f6d1ea162801e"
+          },
+          {
+            "name": "CodeRim-Windows-2.1.41-x64-Setup.msi",
+            "bytes": 142602240,
+            "sha256": "b260869fa8238c1329d42333a97bced7b82691c0eda29089d14880ccb9b3f901"
+          },
+          {
+            "name": "CodeRim-Windows-2.1.41-x64.msix",
+            "bytes": 112115013,
+            "sha256": "cb17942b966432d7f6b204ef44d30de158e9c93c4f5c7e4e907abe08bd4c05b6"
+          }
+        ],
+        "payloadEntries": 5,
+        "installedActivity": {
+          "completed": true,
+          "checks": [
+            "Native toggles persist",
+            "Background history enumeration leaves dispatcher available",
+            "Cancelled stale source cannot replace latest descendant total",
+            "Unknown tasks are explicit and optional",
+            "Unmeasured tasks stay blank",
+            "Disabled duration and tokens disappear"
+          ]
+        },
+        "openPopup": {
+          "notifications": 1,
+          "popupOpen": true,
+          "focused": true,
+          "focusId": "notch.sessions.showLess",
+          "updatedTitle": true
+        }
+      }
+    },
+    "arm64": {
+      "scanner": {
+        "job": 140318168467,
+        "result": "failure",
+        "logSha256": "c44a31b8f20ab8767a71bb36dc9f7686fcfac073985fa7965a5f0390bd5dc61c",
+        "failed": [
+          "Build and compare the opt-in standalone Windows companion"
+        ],
+        "error": "native cost history usage text: reference exited 0; host-isolated CLI exited 1 reporting CodeRimSnapshotHost could not be found. JSON check immediately preceded this case and passed.",
+        "skipped": [
+          "Compare published WPF activity transitions and callbacks",
+          "Compare anonymous release selection and startup with the shipped Windows checker"
+        ]
+      },
+      "installer": {
+        "job": 140318168523,
+        "result": "success",
+        "archive": {
+          "id": 15174015542,
+          "verifiedMembers": 586,
+          "bytes": 9319105,
+          "sha256": "ff756da38cd2d808579001a6e0cfb1f003c5f83bb035fd1a6fe4f4301f464cb2"
+        },
+        "msiChecks": [
+          "signed-legacy-installation-rejected-before-write",
+          "initial-msi-install",
+          "injected-upgrade-failure-restores-binaries-registration-path-shortcut",
+          "installed-rust-cli-and-owned-compatibility-host",
+          "upgrade-current-version",
+          "downgrade-refused-without-changes",
+          "installed-native-ui-and-pinned-worker",
+          "uninstall-preserves-user-data-and-unrelated-path",
+          "portable-migration-failure-restores-files-path-shortcut",
+          "portable-migration-and-repair-keep-one-cli-path",
+          "portable-migration-uninstall-preserves-data-and-unrelated-path",
+          "public-2.1.11-msi-reproduces-duplicate-portable-path",
+          "public-2.1.11-failed-upgrade-restores-installation",
+          "public-2.1.11-upgrade-replaces-all-candidate-binaries",
+          "public-upgrade-uninstall-preserves-user-data-and-path"
+        ],
+        "msixChecks": [
+          "installs-per-user-without-administrator",
+          "cli-aliases-registered",
+          "both-cli-aliases-run-cli",
+          "cli-regressions-through-alias",
+          "packaged-native-ui-smoke",
+          "uninstall-removes-app-and-aliases"
+        ],
+        "publicPhases": [
+          "published-installed-and-profile-read",
+          "failed-upgrade-restored-public-registration-binaries-and-profile",
+          "upgraded-candidate-loaded-preserved-profile",
+          "direct-downgrade-refused-with-data-intact",
+          "published-msi-reinstalled-and-profile-read",
+          "published-uninstalled-and-data-preserved"
+        ],
+        "footprint": {
+          "publishedMsiBytes": 135503872,
+          "candidate": {
+            "files": 22,
+            "bytes": 209770001.0,
+            "publicCliBytes": 445952
+          },
+          "candidateMsiBytes": 133640192,
+          "published": {
+            "files": 18,
+            "bytes": 213780552.0,
+            "publicCliBytes": 94323542
+          }
+        },
+        "installDeltaBytes": -4010551,
+        "packages": [
+          {
+            "name": "CodeRim-Windows-2.1.41-arm64.zip",
+            "bytes": 141959091,
+            "sha256": "c71eabc501fa29ac5d6a4e47b5cb631a23fc4930987f154675c4391460959045"
+          },
+          {
+            "name": "CodeRim-Windows-2.1.41-arm64-Setup.msi",
+            "bytes": 133640192,
+            "sha256": "40605da23c617c7a683961d36b7b621fe2d72e37fa311f652c037127b6260841"
+          },
+          {
+            "name": "CodeRim-Windows-2.1.41-arm64.msix",
+            "bytes": 105693412,
+            "sha256": "faab00f816784e298e9ffc5e2d71e2ac338d4ba5d1a0bef977d32afc2ea7a63d"
+          }
+        ],
+        "payloadEntries": 5,
+        "installedActivity": {
+          "completed": true,
+          "checks": [
+            "Native toggles persist",
+            "Background history enumeration leaves dispatcher available",
+            "Cancelled stale source cannot replace latest descendant total",
+            "Unknown tasks are explicit and optional",
+            "Unmeasured tasks stay blank",
+            "Disabled duration and tokens disappear"
+          ]
+        },
+        "openPopup": {
+          "notifications": 1,
+          "popupOpen": true,
+          "focused": true,
+          "focusId": "notch.sessions.showLess",
+          "updatedTitle": true
+        }
+      }
+    }
+  },
+  "details": "CI SHA 7084e802: native scanner suites stopped at the existing quota text fallback. Package jobs continued independently."
+}
