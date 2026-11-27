@@ -1,11 +1,11 @@
 //! Index stable Windows assets in one bounded, anonymous GitHub release-list response.
-//! The managed downloader still validates each selected asset's exact URL, state, size and digest.
+//! The managed downloader still validates each selected asset's exact URL, size and digest.
 use serde::{
     Deserialize, Deserializer,
     de::{Error, MapAccess, SeqAccess, Visitor},
 };
 use serde_json::value::RawValue;
-use std::{fmt, slice};
+use std::{borrow::Cow, fmt, slice};
 
 const PAGE_SIZE: usize = 30;
 const MAX_BYTES: usize = 1 << 20;
@@ -26,9 +26,12 @@ pub struct Release {
     size: i64,
 }
 
-// Borrow fields verbatim. The released reader checks every direct property for duplicates,
-// including unknown properties. Escaped property names and unusually wide objects use it directly.
-struct Object<'a>(Vec<(&'a str, &'a RawValue)>);
+// Compare decoded property names, including unknown names. Canonical names borrow the
+// response and escaped names own their decoded bytes for the duration of this one object.
+#[derive(Deserialize)]
+#[serde(transparent)]
+struct Name<'a>(#[serde(borrow)] Cow<'a, str>);
+struct Object<'a>(Vec<(Cow<'a, str>, &'a RawValue)>);
 impl<'de> Deserialize<'de> for Object<'de> {
     fn deserialize<D: Deserializer<'de>>(de: D) -> Result<Self, D::Error> {
         struct Fields;
@@ -39,7 +42,7 @@ impl<'de> Deserialize<'de> for Object<'de> {
             }
             fn visit_map<M: MapAccess<'de>>(self, mut map: M) -> Result<Self::Value, M::Error> {
                 let mut fields = Vec::new();
-                while let Some(key) = map.next_key::<&str>()? {
+                while let Some(Name(key)) = map.next_key()? {
                     if fields.len() == 64 || fields.iter().any(|(name, _)| *name == key) {
                         return Err(M::Error::custom("wide or duplicate object"));
                     }
@@ -336,6 +339,16 @@ mod tests {
             ),
             (0, 0, 0, 0)
         );
+    }
+
+    #[test]
+    fn compares_decoded_property_names_and_keeps_unknown_duplicates_ambiguous() {
+        let valid = br#"[{"dr\u0061ft":false,"prerelease":false,"assets":[]}]"#;
+        assert_eq!(project_page(valid, true).0, 1);
+        let duplicate = br#"[{"dr\u0061ft":true,"draft":true,"prerelease":false}]"#;
+        assert_eq!(project_page(duplicate, true).0, -1);
+        let malformed = br#"[{"draft":true,"prerelease":false,"\ud800":1}]"#;
+        assert_eq!(project_page(malformed, true).0, -1);
     }
 
     #[test]
