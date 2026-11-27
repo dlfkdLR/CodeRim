@@ -173,6 +173,31 @@ fn window(v: &J) -> Option<J> {
     )?;
     Some(out)
 }
+// The public CLI omits account metadata from every rendering, but its typed
+// reader still validates both the displayed and cached readings first.
+fn account_metadata(account: &J) -> Option<()> {
+    if matches!(account, J::Null) {
+        return Some(());
+    }
+    account.shape(&["source"], &["label", "region"])?;
+    for key in ["source", "label"] {
+        match account.get(key) {
+            None | Some(J::Null) if key == "label" => continue,
+            Some(J::Str(value))
+                if !value.is_empty()
+                    && value.len() <= 256
+                    && value.trim() == value
+                    && !value.chars().any(char::is_control) => {}
+            _ => return None,
+        }
+    }
+    match account.get("region") {
+        None | Some(J::Null) => Some(()),
+        Some(J::Str(region)) if matches!(region.as_str(), "global" | "bigmodel-cn") => Some(()),
+        _ => None,
+    }
+}
+
 fn reading(v: &J, id: &str, now: i64) -> Option<J> {
     let keys = [
         "id",
@@ -184,11 +209,11 @@ fn reading(v: &J, id: &str, now: i64) -> Option<J> {
         "costUsage",
     ];
     v.shape(&keys, &["account", "headline"])?;
-    if v.get("id")?.s()? != id
-        || !matches!(v.get("costUsage")?, J::Null)
-        || v.get("account").is_some_and(|v| !matches!(v, J::Null))
-    {
+    if v.get("id")?.s()? != id || !matches!(v.get("costUsage")?, J::Null) {
         return None;
+    }
+    if let Some(account) = v.get("account") {
+        account_metadata(account)?;
     }
     let mut state = v.get("state")?.s()?;
     if !matches!(
