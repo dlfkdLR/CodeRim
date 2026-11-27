@@ -4,6 +4,7 @@ import argparse
 import copy
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import shutil
@@ -64,6 +65,17 @@ with private_fixture() as tmp:
         if a!=b:
             raise AssertionError((label,a[0],b[0],a[1][:700],b[1][:700],a[2][:300],b[2][:300]))
         registry.append(dict(label=label,status=a[0],stdout=hashlib.sha256(a[1]).hexdigest(),stderr=hashlib.sha256(a[2]).hexdigest()))
+    def check_round_trip(snapshot, path, label, values, registry):
+        path.write_text(json.dumps(snapshot), encoding='utf8')
+        argv = ['usage', '--snapshot', path, '--format', 'json']
+        compare(label, argv, native_env, registry)
+        status, stdout, stderr = execute(candidate, argv, native_env)
+        assert status == 0 and not stderr
+        limits = json.loads(stdout)['providers'][0]['limits']
+        rows = limits['costUsage']['entries']
+        assert [row['cost'] for row in rows] == values
+        assert [row['estimatedCost'] for row in rows] == [math.nextafter(v, 0.0) for v in values]
+        assert [window['usedPercent'] for window in limits['windows']] == [abs(v) for v in values]
     fixture=base/'fixture'/'OfflineContract.dll'
     for label,providers,windows in [('small',1,1),('medium',8,4),('large',35,7),('empty',0,0)]:
         subprocess.run(['dotnet',str(fixture),'write',str(data/(label+'.json')),str(providers),str(windows)],env=env,check=True)
@@ -128,6 +140,18 @@ with private_fixture() as tmp:
             for fmt in ('json', 'text'):
                 compare(f'native cost history {cmd} {fmt}', [cmd, '--snapshot', cost_path,
                         '--format', fmt], native_env, native_cases)
+        # These exact values and their adjacent doubles must survive both readers.
+        round_trip = copy.deepcopy(cost_snapshot)
+        round_trip['providers'] = round_trip['providers'][:1]
+        limits = round_trip['providers'][0]['limits']
+        values = [2.0**-25, -2.0**-25, 2.0**-958, -2.0**-958, 1e-305, 1e21]
+        limits['costUsage']['entries'] = [
+            {'date': '2024-02-29', 'cost': v, 'estimatedCost': math.nextafter(v, 0.0)}
+            for v in values
+        ]
+        limits['windows'] = [dict(limits['windows'][0], id=f'q{i}', usedPercent=abs(v))
+                             for i, v in enumerate(values)]
+        check_round_trip(round_trip, data/'round-trip.json', 'native binary64 export', values, native_cases)
         stamp = originals['generatedAt']
         for index, value in enumerate(('1970-01-01T00:00:00Z', '2024-02-29T23:59:59.00000000Z',
                                        '2024-03-01T00:00:00.12000Z', '2023-06-15T09:20:10.1234567891234567Z')):
@@ -143,6 +167,9 @@ with private_fixture() as tmp:
                 for cmd in ('usage','limits','tokens'):
                     compare('native '+culture+' '+cmd,[cmd,'--snapshot',data/'medium.json'],dict(env,LC_ALL=culture,LANG=culture,TZ='UTC'),native_cases)
     finally: hidden.rename(host)
+    # A timezone-free release timestamp exercises the actual managed stdin fallback.
+    round_trip['generatedAt'] = '2023-06-15T09:20:10'
+    check_round_trip(round_trip, data/'round-trip-local.json', 'typed binary64 export', values, cases)
     for mode in ('usage','tokens','limits'):
         for period in ('today','week','month','all-time'):
             for fmt in ('text','json'):

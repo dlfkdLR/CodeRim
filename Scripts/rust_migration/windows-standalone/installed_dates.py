@@ -32,6 +32,34 @@ reading["costUsage"] = {
     "entries": [{"date": "2024-02-29", "cost": -1.25}, {"date": "2000-01-01", "estimatedCost": midpoint}],
 }
 quota_source = json.dumps(quota, ensure_ascii=False)
+
+# Windows .NET 10 writes these exact powers like the adjacent value toward zero.
+# Include that neighbour in every row so correcting the wrong field fails the probe.
+boundary_snapshot = json.loads(quota_source)
+boundary_snapshot["providers"] = boundary_snapshot["providers"][:1]
+boundary_reading = boundary_snapshot["providers"][0]["limits"]
+boundary_reading["windows"] = [
+    dict(reading["windows"][0], id=f"boundary-{i}", usedPercent=x)
+    for i, x in enumerate((2.0**-25, 2.0**-958))
+]
+signed_boundaries = [2.0**-25, -2.0**-25, 2.0**-958, -2.0**-958]
+boundary_reading["costUsage"]["entries"] = [
+    {"date": "2024-02-29", "cost": x, "estimatedCost": math.nextafter(x, 0.0)}
+    for x in signed_boundaries
+]
+
+
+def corrected_release_bytes(released):
+    corrected = released
+    for field in (b"cost", b"usedPercent"):
+        for old, new in [(b"2.980232238769531E-08", b"2.9802322387695312E-08"),
+                         (b"4.104536801298376E-289", b"4.1045368012983762E-289")]:
+            for sign in (b"", b"-"):
+                prefix = b'"' + field + b'": ' + sign
+                corrected = corrected.replace(prefix + old, prefix + new)
+    return corrected
+
+
 proof = {"executableSha256": hashlib.sha256(args.cli.read_bytes()).hexdigest(), "cases": {}}
 with tempfile.TemporaryDirectory(prefix="coderim-installed-dates-") as directory:
     path = Path(directory) / "input.json"
@@ -43,6 +71,7 @@ with tempfile.TemporaryDirectory(prefix="coderim-installed-dates-") as directory
             ("rootExtension", json.dumps(dict(json.loads(source), futureProperty=["fixture", 1]), ensure_ascii=False), "json"),
             ("creditHistory", quota_source, "json"),
             ("quotaText", quota_source, "text"),
+            ("exactBoundaries", json.dumps(boundary_snapshot, ensure_ascii=False), "json"),
     ]:
         payload = contents.encode("utf-8")
         path.write_bytes(payload)
@@ -62,16 +91,30 @@ with tempfile.TemporaryDirectory(prefix="coderim-installed-dates-") as directory
                     assert providers[0]["limits"]["costUsage"]["historyLabel"] == "fixture-credit"
             else:
                 assert all(f"Quota fixture {index}:".encode() in process.stdout for index in range(len(percentages)))
+            if name == "exactBoundaries":
+                limits = providers[0]["limits"]
+                costs = limits["costUsage"]["entries"]
+                neighbors = [math.nextafter(x, 0.0) for x in signed_boundaries]
+                expected = signed_boundaries if args.published else neighbors
+                assert [row["cost"] for row in costs] == expected
+                assert [row["estimatedCost"] for row in costs] == neighbors
+                assert [window["usedPercent"] for window in limits["windows"]] == expected[::2]
+                if not args.published:
+                    expected_digest = hashlib.sha256(corrected_release_bytes(process.stdout)).hexdigest()
             digests.add(hashlib.sha256(process.stdout).hexdigest())
         assert len(digests) == 1
         proof["cases"][name] = {"inputSha256": hashlib.sha256(payload).hexdigest(), "outputSha256": digests.pop(),
                                 "samplesMs": samples, "medianMs": statistics.median(samples)}
 
+        if name == "exactBoundaries" and not args.published:
+            proof["cases"][name]["correctedOutputSha256"] = expected_digest
+
 if args.published:
     published = json.loads(args.published.read_text(encoding="utf-8"))
     for name, result in proof["cases"].items():
         for key in ("inputSha256", "outputSha256"):
-            assert result[key] == published["cases"][name][key], f"{name} {key} differs from the installed public MSI"
+            expected_key = "correctedOutputSha256" if name == "exactBoundaries" and key == "outputSha256" else key
+            assert result[key] == published["cases"][name][expected_key], f"{name} {key} differs from the installed public MSI"
     proof = {"comparison": "Seven fresh CLI processes per input in separate installed MSI phases.",
              "published": published, "candidate": proof}
 args.output.write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
