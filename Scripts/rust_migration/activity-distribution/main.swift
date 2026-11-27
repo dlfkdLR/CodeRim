@@ -44,9 +44,18 @@ private func validate(_ directory: URL) async throws -> [Capture] {
     let claude = directory.appendingPathComponent("claude"), codex = directory.appendingPathComponent("codex")
     for dir in [claude,codex] { try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true) }
     let fixed = Date(timeIntervalSince1970: 1_793_275_200)
-    let text = #"{"timestamp":"2026-10-29T01:00:00Z","type":"turn_context","payload":{"model":"fixture-model"}}"# + "\n"
+    var text = #"{"timestamp":"2026-10-29T01:00:00Z","type":"turn_context","payload":{"model":"fixture-model"}}"# + "\n"
         + #"{"timestamp":"2026-10-29T01:00:02Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"fixture"}]}}"# + "\n"
         + #"{"timestamp":"2026-10-29T01:00:03Z","type":"response_item","payload":{"type":"function_call","name":"fixture_tool","arguments":"{}","call_id":"c"}}"# + "\n"
+    // Each day sees different first spellings of canonically equal labels.
+    // Chart output includes the original UTF-8 selected during aggregation.
+    let labels = ["é", "e\u{301}", "K", "K", "Å", "A\u{30a}", "Å", "read", "shell"]
+    for index in 0..<180 {
+        let day = 23 + (index * 5 + index / 13) % 7
+        let name = labels[(index * 7 + index / 17) % labels.count]
+        text += "{\"type\":\"function_call\",\"timestamp\":\"2026-10-\(day)T01:00:00Z\","
+            + "\"name\":\"\(name)\",\"path\":\"/skills/\(name)/SKILL.md\"}\n"
+    }
     try text.write(to: codex.appendingPathComponent("fixture.jsonl"), atomically: true, encoding: .utf8)
     let event = #"{"timestamp":"2026-10-29T01:00:00Z","type":"assistant","message":{"id":"fixture","role":"assistant","model":"fixture-model","content":[{"type":"tool_use","id":"call","name":"Skill","input":{"skill":"fixture-skill"}}]}}"#
     try (event + "\n").write(to: claude.appendingPathComponent("fixture.jsonl"), atomically: true, encoding: .utf8)
