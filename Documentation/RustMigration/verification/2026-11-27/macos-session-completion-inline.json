@@ -1,0 +1,868 @@
+{
+  "product": "d173bcc15cfb983f31da8b80258cdb9a72df6c07",
+  "sourceComparison": [
+    "14c332b30fd35cd266b40a4f9384b4b065b63707",
+    "fd1295a7257a49c0fb8270b267f46c4aef8ea3f1",
+    "812f8d25d4f6e634a0d5d18cb097c369fe1117cd"
+  ],
+  "scope": "The first busy ASCII identifier up to 48 bytes is held in the Rust set. Longer keys and additional simultaneously busy sessions retain owned heap storage. Swift handles canonical Unicode equality.",
+  "medianRule": "Actual complete SessionCompletionWatcher transition, CPU ns per call, nine alternating three-way rounds, rotating keys included.",
+  "architectures": {
+    "arm64": {
+      "cases": 2344,
+      "traceSha256": "994f24c6f14d305685059ea578d32a7110da1cffedf349a91409e71447843ebf",
+      "samples": {
+        "1/busy": {
+          "released": [
+            311.25,
+            335.78333333333336,
+            281.9166666666667,
+            266.81666666666666,
+            280.55,
+            285.05,
+            310.21666666666664,
+            322.15,
+            352.21666666666664
+          ],
+          "sparse": [
+            255.53333333333333,
+            277.01666666666665,
+            233.4,
+            241.1,
+            240.58333333333334,
+            254.43333333333334,
+            260.03333333333336,
+            293.2,
+            292.6
+          ],
+          "inline": [
+            236.71666666666667,
+            242.06666666666666,
+            227.0,
+            208.05,
+            199.35,
+            203.18333333333334,
+            210.95,
+            255.25,
+            252.65
+          ]
+        },
+        "1/changing-busy": {
+          "released": [
+            372.6,
+            308.0833333333333,
+            384.8333333333333,
+            315.43333333333334,
+            328.8333333333333,
+            313.73333333333335,
+            267.56666666666666,
+            285.98333333333335,
+            272.0833333333333
+          ],
+          "sparse": [
+            318.78333333333336,
+            297.1333333333333,
+            288.0,
+            275.03333333333336,
+            294.05,
+            288.28333333333336,
+            255.56666666666666,
+            258.06666666666666,
+            252.71666666666667
+          ],
+          "inline": [
+            260.46666666666664,
+            250.0,
+            266.28333333333336,
+            239.4,
+            254.65,
+            210.41666666666666,
+            212.93333333333334,
+            217.88333333333333,
+            220.86666666666667
+          ]
+        },
+        "1/mixed": {
+          "released": [
+            380.93333333333334,
+            369.3,
+            377.1166666666667,
+            365.95,
+            359.93333333333334,
+            358.3333333333333,
+            372.0,
+            360.78333333333336,
+            376.71666666666664
+          ],
+          "sparse": [
+            222.3,
+            209.31666666666666,
+            199.05,
+            220.68333333333334,
+            219.98333333333332,
+            211.96666666666667,
+            208.2,
+            205.18333333333334,
+            205.18333333333334
+          ],
+          "inline": [
+            195.11666666666667,
+            201.53333333333333,
+            196.81666666666666,
+            203.88333333333333,
+            201.58333333333334,
+            195.83333333333334,
+            200.15,
+            211.83333333333334,
+            199.68333333333334
+          ]
+        },
+        "1/idle": {
+          "released": [
+            282.4166666666667,
+            271.3333333333333,
+            276.96666666666664,
+            277.3666666666667,
+            280.3,
+            275.31666666666666,
+            298.96666666666664,
+            279.05,
+            305.68333333333334
+          ],
+          "sparse": [
+            52.583333333333336,
+            55.25,
+            59.1,
+            53.95,
+            60.233333333333334,
+            48.75,
+            50.95,
+            48.31666666666667,
+            44.11666666666667
+          ],
+          "inline": [
+            52.7,
+            61.2,
+            59.61666666666667,
+            59.53333333333333,
+            51.21666666666667,
+            52.96666666666667,
+            50.9,
+            45.96666666666667,
+            60.233333333333334
+          ]
+        },
+        "6/busy": {
+          "released": [
+            1539.7,
+            1553.1,
+            1603.3,
+            1558.7,
+            1603.1,
+            1586.8,
+            1572.3,
+            1619.4,
+            1603.0
+          ],
+          "sparse": [
+            1227.1,
+            1233.2,
+            1146.1,
+            1155.4,
+            1236.4,
+            1155.6,
+            1185.1,
+            1127.4,
+            1140.3
+          ],
+          "inline": [
+            1107.0,
+            1152.5,
+            1177.0,
+            1085.1,
+            1179.2,
+            1128.9,
+            1220.8,
+            1142.0,
+            1142.9
+          ]
+        },
+        "16/mixed": {
+          "released": [
+            5937.6,
+            6415.733333333334,
+            6500.533333333334,
+            6189.866666666667,
+            6298.4,
+            6336.0,
+            6652.8,
+            6497.6,
+            6683.2
+          ],
+          "sparse": [
+            4036.0,
+            4403.466666666666,
+            4460.0,
+            4430.4,
+            4153.6,
+            4341.866666666667,
+            4458.133333333333,
+            4302.4,
+            4344.266666666666
+          ],
+          "inline": [
+            4234.133333333333,
+            4165.866666666667,
+            4375.466666666666,
+            4422.133333333333,
+            4408.533333333334,
+            4368.266666666666,
+            4217.333333333333,
+            4427.466666666666,
+            4564.533333333334
+          ]
+        },
+        "128/busy": {
+          "released": [
+            35614.0,
+            39395.0,
+            35389.0,
+            38234.0,
+            34625.0,
+            37891.0,
+            32840.0,
+            37327.0,
+            37202.0
+          ],
+          "sparse": [
+            27764.0,
+            29971.0,
+            29806.0,
+            28713.0,
+            29691.0,
+            29771.0,
+            24554.0,
+            28481.0,
+            28209.0
+          ],
+          "inline": [
+            22971.0,
+            29526.0,
+            28545.0,
+            27594.0,
+            27071.0,
+            24788.0,
+            27916.0,
+            31044.0,
+            27598.0
+          ]
+        },
+        "128/one-busy": {
+          "released": [
+            38787.0,
+            37156.0,
+            38301.0,
+            37273.0,
+            38442.0,
+            37613.0,
+            37947.0,
+            37175.0,
+            31950.0
+          ],
+          "sparse": [
+            14165.0,
+            13099.0,
+            13544.0,
+            14082.0,
+            14025.0,
+            12914.0,
+            13002.0,
+            13120.0,
+            12461.0
+          ],
+          "inline": [
+            13548.0,
+            12513.0,
+            12581.0,
+            12829.0,
+            12625.0,
+            12557.0,
+            13839.0,
+            12918.0,
+            13619.0
+          ]
+        }
+      }
+    },
+    "x86_64": {
+      "cases": 2344,
+      "traceSha256": "994f24c6f14d305685059ea578d32a7110da1cffedf349a91409e71447843ebf",
+      "samples": {
+        "1/busy": {
+          "released": [
+            579.4833333333333,
+            626.6166666666667,
+            566.2833333333333,
+            537.7666666666667,
+            524.1666666666666,
+            544.85,
+            579.75,
+            589.1333333333333,
+            616.9333333333333
+          ],
+          "sparse": [
+            612.8833333333333,
+            560.1333333333333,
+            570.3333333333334,
+            544.95,
+            546.7166666666667,
+            544.3166666666667,
+            552.0333333333333,
+            667.8,
+            592.95
+          ],
+          "inline": [
+            526.4333333333333,
+            532.1,
+            433.81666666666666,
+            463.98333333333335,
+            456.4,
+            442.56666666666666,
+            496.8,
+            525.4166666666666,
+            516.9666666666667
+          ]
+        },
+        "1/changing-busy": {
+          "released": [
+            542.9,
+            518.5,
+            522.2333333333333,
+            541.5666666666667,
+            511.4,
+            494.55,
+            485.6166666666667,
+            496.6166666666667,
+            489.56666666666666
+          ],
+          "sparse": [
+            536.9333333333333,
+            606.7666666666667,
+            533.4833333333333,
+            518.9166666666666,
+            536.4333333333333,
+            515.3833333333333,
+            562.1333333333333,
+            559.0833333333334,
+            549.35
+          ],
+          "inline": [
+            474.1,
+            517.5333333333333,
+            495.65,
+            450.2,
+            428.8833333333333,
+            444.03333333333336,
+            437.6666666666667,
+            433.43333333333334,
+            429.6666666666667
+          ]
+        },
+        "1/mixed": {
+          "released": [
+            700.0333333333333,
+            704.0166666666667,
+            701.9,
+            688.3,
+            703.0166666666667,
+            721.9166666666666,
+            720.9333333333333,
+            744.2166666666667,
+            813.95
+          ],
+          "sparse": [
+            436.28333333333336,
+            417.1666666666667,
+            425.71666666666664,
+            430.35,
+            423.9,
+            436.03333333333336,
+            451.98333333333335,
+            461.1666666666667,
+            539.15
+          ],
+          "inline": [
+            403.93333333333334,
+            385.8333333333333,
+            401.46666666666664,
+            395.0833333333333,
+            400.06666666666666,
+            409.73333333333335,
+            447.46666666666664,
+            429.5,
+            445.35
+          ]
+        },
+        "1/idle": {
+          "released": [
+            590.7833333333333,
+            649.2833333333333,
+            604.15,
+            515.3,
+            512.5833333333334,
+            524.0666666666667,
+            528.6333333333333,
+            537.5166666666667,
+            536.6166666666667
+          ],
+          "sparse": [
+            114.1,
+            117.58333333333333,
+            114.01666666666667,
+            108.21666666666667,
+            109.56666666666666,
+            112.38333333333334,
+            111.0,
+            108.61666666666666,
+            107.05
+          ],
+          "inline": [
+            113.9,
+            113.58333333333333,
+            112.3,
+            109.8,
+            103.9,
+            109.88333333333334,
+            102.2,
+            107.56666666666666,
+            105.05
+          ]
+        },
+        "6/busy": {
+          "released": [
+            3155.6,
+            3186.8,
+            3123.4,
+            3239.8,
+            3161.1,
+            3121.1,
+            3151.8,
+            3152.9,
+            3301.0
+          ],
+          "sparse": [
+            2363.6,
+            2341.1,
+            2360.2,
+            2440.1,
+            2451.7,
+            2547.8,
+            2385.0,
+            2373.6,
+            2662.6
+          ],
+          "inline": [
+            2368.4,
+            2343.1,
+            2492.8,
+            2463.3,
+            2285.0,
+            2274.3,
+            2314.3,
+            2427.4,
+            2418.6
+          ]
+        },
+        "16/mixed": {
+          "released": [
+            12748.8,
+            11472.8,
+            11722.133333333333,
+            11729.333333333334,
+            12136.0,
+            11929.866666666667,
+            11180.0,
+            11459.466666666667,
+            11433.6
+          ],
+          "sparse": [
+            8340.266666666666,
+            8422.4,
+            7777.333333333333,
+            7980.0,
+            8483.466666666667,
+            8346.133333333333,
+            7334.133333333333,
+            7646.666666666667,
+            7868.0
+          ],
+          "inline": [
+            7526.933333333333,
+            8009.6,
+            8288.8,
+            8164.0,
+            8305.066666666668,
+            8020.0,
+            7337.866666666667,
+            7560.0,
+            7525.6
+          ]
+        },
+        "128/busy": {
+          "released": [
+            60355.0,
+            63625.0,
+            59981.0,
+            59965.0,
+            60958.0,
+            59767.0,
+            59849.0,
+            62556.0,
+            62642.0
+          ],
+          "sparse": [
+            44468.0,
+            44293.0,
+            45946.0,
+            44289.0,
+            44539.0,
+            45043.0,
+            44376.0,
+            46944.0,
+            45759.0
+          ],
+          "inline": [
+            45159.0,
+            44803.0,
+            44488.0,
+            46582.0,
+            44352.0,
+            44254.0,
+            45193.0,
+            47628.0,
+            48093.0
+          ]
+        },
+        "128/one-busy": {
+          "released": [
+            61926.0,
+            62500.0,
+            79448.0,
+            77217.0,
+            65596.0,
+            63271.0,
+            63393.0,
+            73484.0,
+            68111.0
+          ],
+          "sparse": [
+            21041.0,
+            19214.0,
+            21842.0,
+            22133.0,
+            19151.0,
+            18128.0,
+            18571.0,
+            21647.0,
+            17994.0
+          ],
+          "inline": [
+            17429.0,
+            17142.0,
+            19229.0,
+            24064.0,
+            18068.0,
+            17182.0,
+            18834.0,
+            21265.0,
+            21758.0
+          ]
+        }
+      }
+    }
+  },
+  "independent": {
+    "run_id": "run-a2f28a523ce0477e886f1b268b33aebd",
+    "packet_digest": "ed5c5cc17c38ba92a249e466ce516e3784ce156f7a3d40f08131adcfc27aedc7",
+    "candidate_commit": "812f8d25d4f6e634a0d5d18cb097c369fe1117cd",
+    "rust_artifact_sha256": "16150161d5f111e13da89ec24ebbfd9a9c94de851d55a3274316f8bc8cf8e4fa",
+    "reviewer": "separate implementation reviewer",
+    "dimensions": {
+      "functionality": {
+        "winner": "TIE",
+        "reason": "Across both targets, complete release/candidate events, sorting and sound filtering matched on 1,792 new frames, including watcher copies surviving mutations and inline-to-long transitions.",
+        "evidence": [
+          "baseline/Rust/bridge/src/session_completion.rs",
+          "candidate/Rust/bridge/src/session_completion.rs"
+        ]
+      },
+      "facts": {
+        "winner": "TIE",
+        "reason": "Busy, waiting, idle and unavailable retain original event reasons and provider-qualified session identity, including canonical Unicode fallback.",
+        "evidence": [
+          "baseline/Rust/bridge/src/session_completion.rs",
+          "candidate/Rust/bridge/src/session_completion.rs"
+        ]
+      },
+      "security": {
+        "winner": "TIE",
+        "reason": "No key storage borrows the input. Direct calls overwrite caller bytes immediately, promote single/long keys into the many set and independently drop current sets. Empty non-null and invalid parameters checked. No account, profile or real notification used.",
+        "evidence": [
+          "baseline/Rust/bridge/src/session_completion.rs",
+          "candidate/Rust/bridge/src/session_completion.rs"
+        ]
+      },
+      "maintainability": {
+        "winner": "A",
+        "reason": "Prior sparse representation has fewer storage variants. The extra inline byte array and length are localized in the candidate and validated at the exact size boundary.",
+        "evidence": [
+          "baseline/Rust/bridge/src/session_completion.rs",
+          "candidate/Rust/bridge/src/session_completion.rs"
+        ]
+      },
+      "scope": {
+        "winner": "TIE",
+        "reason": "Only one busy key is stored inline; the previous set remains immutable throughout absorb and no system UI policy changes.",
+        "evidence": [
+          "baseline/Rust/bridge/src/session_completion.rs",
+          "candidate/Rust/bridge/src/session_completion.rs"
+        ]
+      },
+      "performance": {
+        "winner": "B",
+        "reason": "15 fresh alternating process samples for busy and changing-busy and 13 in-process release/candidate samples per identity length demonstrate the one-session improvement on both ABIs. Already-idle sparse and candidate differ by ~1–3 ns. No battery or complete-window timing claim.",
+        "evidence": [
+          "baseline/Rust/bridge/src/session_completion.rs",
+          "candidate/Rust/bridge/src/session_completion.rs"
+        ]
+      }
+    },
+    "architectures": {
+      "arm64": {
+        "boundary_frames": "frames=1792 events=1279",
+        "single_busy_total_key_length_two_plus_id_median_ns_release_candidate": {
+          "0/false": [
+            239,
+            173
+          ],
+          "0/true": [
+            230,
+            175
+          ],
+          "1/false": [
+            249,
+            180
+          ],
+          "1/true": [
+            236,
+            172
+          ],
+          "14/false": [
+            353,
+            254
+          ],
+          "14/true": [
+            344,
+            250
+          ],
+          "45/false": [
+            451,
+            276
+          ],
+          "45/true": [
+            444,
+            262
+          ],
+          "46/false": [
+            403,
+            245
+          ],
+          "46/true": [
+            400,
+            236
+          ],
+          "47/false": [
+            416,
+            273
+          ],
+          "47/true": [
+            418,
+            275
+          ],
+          "48/false": [
+            440,
+            288
+          ],
+          "48/true": [
+            446,
+            290
+          ],
+          "49/false": [
+            456,
+            267
+          ],
+          "49/true": [
+            356,
+            227
+          ],
+          "127/false": [
+            579,
+            250
+          ],
+          "127/true": [
+            588,
+            241
+          ]
+        },
+        "direct_c_abi": {
+          "length_pairs": 361,
+          "observations": 4332
+        },
+        "single_process_watcher_median_ns_released_sparse_inline": {
+          "busy": {
+            "released": 275.18666666666667,
+            "sparse": 240.37333333333333,
+            "inline": 215.6
+          },
+          "changing-busy": {
+            "released": 285.85333333333335,
+            "sparse": 240.73333333333332,
+            "inline": 214.12
+          },
+          "mixed": {
+            "released": 368.64,
+            "sparse": 212.13333333333333,
+            "inline": 197.89333333333335
+          },
+          "idle": {
+            "released": 292.4266666666667,
+            "sparse": 51.77333333333333,
+            "inline": 54.21333333333333
+          }
+        },
+        "prior_ui_reference_replay": "frames=11000 crossings=7308 copies=2750 settingSets=54 monitorCallbacks=1080 chimes=168 peeks=216"
+      },
+      "x86_64": {
+        "boundary_frames": "frames=1792 events=1279",
+        "single_busy_total_key_length_two_plus_id_median_ns_release_candidate": {
+          "0/false": [
+            360,
+            315
+          ],
+          "0/true": [
+            372,
+            327
+          ],
+          "1/false": [
+            357,
+            317
+          ],
+          "1/true": [
+            355,
+            315
+          ],
+          "14/false": [
+            556,
+            462
+          ],
+          "14/true": [
+            573,
+            491
+          ],
+          "45/false": [
+            652,
+            502
+          ],
+          "45/true": [
+            682,
+            540
+          ],
+          "46/false": [
+            877,
+            676
+          ],
+          "46/true": [
+            772,
+            626
+          ],
+          "47/false": [
+            809,
+            770
+          ],
+          "47/true": [
+            787,
+            744
+          ],
+          "48/false": [
+            808,
+            732
+          ],
+          "48/true": [
+            792,
+            777
+          ],
+          "49/false": [
+            780,
+            736
+          ],
+          "49/true": [
+            733,
+            706
+          ],
+          "127/false": [
+            1000,
+            768
+          ],
+          "127/true": [
+            1014,
+            801
+          ]
+        },
+        "direct_c_abi": {
+          "length_pairs": 361,
+          "observations": 4332
+        },
+        "single_process_watcher_median_ns_released_sparse_inline": {
+          "busy": {
+            "released": 564.56,
+            "sparse": 554.5733333333334,
+            "inline": 453.8933333333333
+          },
+          "changing-busy": {
+            "released": 552.8266666666667,
+            "sparse": 564.7333333333333,
+            "inline": 461.6933333333333
+          },
+          "mixed": {
+            "released": 735.7066666666667,
+            "sparse": 446.53333333333336,
+            "inline": 428.6666666666667
+          },
+          "idle": {
+            "released": 552.9733333333334,
+            "sparse": 106.6,
+            "inline": 107.6
+          }
+        },
+        "prior_ui_reference_replay": "frames=11000 crossings=7244 copies=2750 settingSets=54 monitorCallbacks=1080 chimes=168 peeks=216"
+      }
+    },
+    "limits": "arm64 native and x86_64 Rosetta on the same Apple Silicon Mac. Isolated UI recording sinks for sound and peek; no real playback/visible window or physical Intel test. CPU times are per watcher absorb. Prior UI traces from root are explicitly separate from the new ABI and boundary tests.",
+    "artifacts": {
+      "watcher-inline-exact.a": "b64346a318b137cdc4b3e527f1517ca435bd51b301c9ee4f5e799bb28c16e6be",
+      "inline-independent-work/boundary.c": "a9d89dc3367bfb97e6377c6dcd343675f8323eec41b657da933d591e39eb36d2",
+      "inline-independent-work/main.swift": "dcd0fe431059fff27eaf8fca27fc0929a5096aa66d9633127639a7e48b3329eb",
+      "inline-independent-work/prepare.py": "2ba7b30f1f667a665244bfd5630bc18b4aa9251327e058ad31acecd074e0cbd0",
+      "inline-independent-work/compare.py": "1d6dfa56cd3ac9026857a3c6322ad6d545186838f580be7002fc7bf4c54265cd",
+      "inline-independent-work/abi-arm64.json": "e8aa4bb1c83ce5e3fe671d046d42a36471716f1824b58aeed9ca9f06fc78754a",
+      "inline-independent-work/abi-x86_64.json": "e8aa4bb1c83ce5e3fe671d046d42a36471716f1824b58aeed9ca9f06fc78754a",
+      "inline-independent-work/single-arm64.json": "2b131406034d00a634c9b4dd618776eec526ac424db0767a8568fcc4f43a1cdf",
+      "inline-independent-work/single-x86_64.json": "2821477fcbed77cfc3971b5ec5234c9dcf5aa96fe914153e63533720767d2111",
+      "inline-independent-work/boundary-arm64.log": "d3535d47b31a618e97245076e4037d0e4acb5b8f88591d60b0e454189707dc25",
+      "inline-independent-work/boundary-x86_64.log": "f5ef11cfec7194b0a0988bc7b4b8f100e5fc2d06f559894df01e84d7565da7fe",
+      "inline-independent-work/probe-arm64": "ba879185e0114228d6db3ddf5f15a2fb8368524a26bfa64b807f96da5ca203df",
+      "inline-independent-work/probe-x86_64": "8ed30321232452b4ecac0e28ec3e4b9aece428427fdccd2f5b1ada31addbaa7c"
+    }
+  },
+  "formal": "INCONCLUSIVE"
+}

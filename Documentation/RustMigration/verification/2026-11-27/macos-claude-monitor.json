@@ -1,0 +1,1101 @@
+{
+  "product": "550e836c97f5a25f4ebc6f6e1cd5af0f554f9128",
+  "previous": "50d0ec2627098bc7142775bfbc325a4026bf55f3",
+  "published": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "packetDigest": "b42268583ab103aa7e9ecc5a841f960b967522a1031f0cd73ad0f273c4583aa8",
+  "run": "run-38720eade6ec42beb1df2c6d7e1f63da",
+  "method": "Actual complete ClaudeSessionMonitor.read of synthetic registry/transcript files on Darwin arm64 and Rosetta x86_64; only QA process pid. Host Project resolved temp directories. Session record, process-liveness checks, title, subagent assembly and ordering used real product sources. No interactive notch window, full distribution package, production account data, or physical Intel machine was used.",
+  "source": {
+    "Sources/CodeRim/Notch/ClaudeTranscript.swift": "04a14ef844a2ac4c4d109e848ecc25b949ec0f2e7706980cfaf67edbd3764047",
+    "Rust/bridge/src/claude_transcript_status.rs": "a9aa2e2acaf9ee2361351b7223c88ae18ffca2c76df4e4adc6a1d7c8fcf8357f",
+    "Rust/bridge/include/coderim_transcript.h": "90e7ab19e5ace2b3d810ea7da2e8c254815e19bc6a01d97245e868067a57997f",
+    "Scripts/rust_migration/claude-monitor-poll/check.py": "d1b1c61a0b975a82da2ba263cb3092dc8c0f628b1842c02084ba4cc26e1f9bfb",
+    "Scripts/rust_migration/claude-monitor-poll/main.swift": "d32480086f2b176502a76cef85024b9c7dc7ef805d456a1223873fb3d3f30f38"
+  },
+  "archiveSha256": "5ae4d99c018d0a9455d425a614dd06de8ac9b081763b4ad84f9715ea77bb7433",
+  "perArchitecture": {
+    "arm64": {
+      "completeFullMonitorStates": "arm64 63 complete monitor snapshots per host d475d01867de9e292c86ae2f9ea4b6bcb6be79ee1692eecc63fcb1aabe0f2966",
+      "previousTailContract": "arm64: 29 file-backed Claude activity states matched for release, swift, rust",
+      "nativeAbi": "13000 0 []\n5 pointer/file-kind checks",
+      "cpuSevenPairedRoundsNs": {
+        "0/idle": {
+          "samplesCpuNs": {
+            "release": [
+              46541,
+              47069,
+              46916,
+              47347,
+              46986,
+              48076,
+              47118
+            ],
+            "previous": [
+              45590,
+              45958,
+              46111,
+              46576,
+              48027,
+              46451,
+              47729
+            ],
+            "native": [
+              46423,
+              46909,
+              46277,
+              46902,
+              46638,
+              47687,
+              46270
+            ]
+          },
+          "medianCpuNs": {
+            "release": 47069,
+            "previous": 46451,
+            "native": 46638
+          }
+        },
+        "1/idle": {
+          "samplesCpuNs": {
+            "release": [
+              233465,
+              222013,
+              225409,
+              227215,
+              216798,
+              217541,
+              219875
+            ],
+            "previous": [
+              228791,
+              219625,
+              234701,
+              226041,
+              218868,
+              219798,
+              230430
+            ],
+            "native": [
+              101256,
+              94402,
+              96000,
+              98006,
+              92916,
+              99826,
+              97736
+            ]
+          },
+          "medianCpuNs": {
+            "release": 222013,
+            "previous": 226041,
+            "native": 97736
+          }
+        },
+        "1/active": {
+          "samplesCpuNs": {
+            "release": [
+              236145,
+              244972,
+              246090,
+              250236,
+              246326,
+              244611,
+              241187
+            ],
+            "previous": [
+              268125,
+              243923,
+              241673,
+              242715,
+              244138,
+              243125,
+              243250
+            ],
+            "native": [
+              116145,
+              115333,
+              110180,
+              113229,
+              116381,
+              115243,
+              116916
+            ]
+          },
+          "medianCpuNs": {
+            "release": 244972,
+            "previous": 243250,
+            "native": 115333
+          }
+        },
+        "8/idle": {
+          "samplesCpuNs": {
+            "release": [
+              1401555,
+              1363111,
+              1433666,
+              1460666,
+              1398000,
+              1410000,
+              1379444
+            ],
+            "previous": [
+              1371611,
+              1430888,
+              1414111,
+              1439611,
+              1433611,
+              1452333,
+              1415888
+            ],
+            "native": [
+              394833,
+              416888,
+              419555,
+              423555,
+              424555,
+              416388,
+              417166
+            ]
+          },
+          "medianCpuNs": {
+            "release": 1401555,
+            "previous": 1430888,
+            "native": 417166
+          }
+        },
+        "8/active": {
+          "samplesCpuNs": {
+            "release": [
+              1595388,
+              1507777,
+              1549555,
+              1571666,
+              1497277,
+              1515777,
+              1552722
+            ],
+            "previous": [
+              1571111,
+              1528722,
+              1556277,
+              1527888,
+              1512666,
+              1569500,
+              1529444
+            ],
+            "native": [
+              540666,
+              538777,
+              509500,
+              532166,
+              539944,
+              516777,
+              531444
+            ]
+          },
+          "medianCpuNs": {
+            "release": 1549555,
+            "previous": 1529444,
+            "native": 532166
+          }
+        },
+        "8/queued": {
+          "samplesCpuNs": {
+            "release": [
+              1498166,
+              1481888,
+              1462055,
+              1482666,
+              1482888,
+              1480222,
+              1451888
+            ],
+            "previous": [
+              1454277,
+              1436111,
+              1459555,
+              1419722,
+              1550500,
+              1455888,
+              1513166
+            ],
+            "native": [
+              518222,
+              514833,
+              513000,
+              517666,
+              533666,
+              519388,
+              514055
+            ]
+          },
+          "medianCpuNs": {
+            "release": 1481888,
+            "previous": 1455888,
+            "native": 517666
+          }
+        },
+        "32/idle": {
+          "samplesCpuNs": {
+            "release": [
+              5010916,
+              5003666,
+              5398333,
+              5039916,
+              4943666,
+              4987333,
+              4965916
+            ],
+            "previous": [
+              5025750,
+              4998166,
+              5211750,
+              5056750,
+              4945583,
+              5117916,
+              5446583
+            ],
+            "native": [
+              1373833,
+              1361583,
+              1447666,
+              1385333,
+              1449666,
+              1334166,
+              1369750
+            ]
+          },
+          "medianCpuNs": {
+            "release": 5003666,
+            "previous": 5056750,
+            "native": 1373833
+          }
+        },
+        "32/active": {
+          "samplesCpuNs": {
+            "release": [
+              5518833,
+              5429083,
+              5478916,
+              5669083,
+              5547750,
+              5751833,
+              5474250
+            ],
+            "previous": [
+              5553666,
+              5516916,
+              5728833,
+              6145583,
+              5559083,
+              5576750,
+              5720916
+            ],
+            "native": [
+              1805583,
+              1812583,
+              1839416,
+              1801333,
+              1801666,
+              1998916,
+              1826083
+            ]
+          },
+          "medianCpuNs": {
+            "release": 5518833,
+            "previous": 5576750,
+            "native": 1812583
+          }
+        },
+        "8/missing": {
+          "samplesCpuNs": {
+            "release": [
+              530388,
+              520666,
+              537666,
+              526055,
+              542222,
+              539777,
+              530388
+            ],
+            "previous": [
+              516666,
+              533555,
+              546000,
+              523444,
+              528388,
+              539500,
+              530888
+            ],
+            "native": [
+              520944,
+              518833,
+              530555,
+              529500,
+              522055,
+              554722,
+              529833
+            ]
+          },
+          "medianCpuNs": {
+            "release": 530388,
+            "previous": 530888,
+            "native": 529500
+          }
+        }
+      },
+      "archiveHostBinaries": {
+        "release": "89c1fc56758e428e643b6ae2457f0300b778aa84726fa84e49b464c150c1ca59",
+        "previous": "2d1b6fe380068bb9ebff0664b9e5e9c6d2787101aeffb48e4153e70215d98ecc",
+        "native": "a990a89644af6d420c7dde3454e75e092a42bb7cf1399d7ee3bd0a173dabed10",
+        "swift": "55fcb7c9b8532fb2af112d4f13b0747b3d5ff8d4fcc1b072253e8ca3c837ce81"
+      }
+    },
+    "x86_64": {
+      "completeFullMonitorStates": "x86_64 63 complete monitor snapshots per host d475d01867de9e292c86ae2f9ea4b6bcb6be79ee1692eecc63fcb1aabe0f2966",
+      "previousTailContract": "x86_64: 29 file-backed Claude activity states matched for release, swift, rust",
+      "nativeAbi": "13000 0 []\n5 pointer/file-kind checks",
+      "cpuSevenPairedRoundsNs": {
+        "0/idle": {
+          "samplesCpuNs": {
+            "release": [
+              50465,
+              52618,
+              51437,
+              50361,
+              52590,
+              50562,
+              51513
+            ],
+            "previous": [
+              50527,
+              50465,
+              50277,
+              50972,
+              52652,
+              51770,
+              52006
+            ],
+            "native": [
+              52013,
+              50493,
+              51381,
+              52145,
+              50395,
+              51277,
+              54701
+            ]
+          },
+          "medianCpuNs": {
+            "release": 51437,
+            "previous": 50972,
+            "native": 51381
+          }
+        },
+        "1/idle": {
+          "samplesCpuNs": {
+            "release": [
+              260055,
+              256201,
+              257347,
+              265368,
+              268513,
+              267451,
+              277583
+            ],
+            "previous": [
+              262263,
+              265236,
+              269208,
+              267076,
+              275493,
+              264513,
+              278937
+            ],
+            "native": [
+              119006,
+              124944,
+              118875,
+              121611,
+              121555,
+              118194,
+              128305
+            ]
+          },
+          "medianCpuNs": {
+            "release": 265368,
+            "previous": 267076,
+            "native": 121555
+          }
+        },
+        "1/active": {
+          "samplesCpuNs": {
+            "release": [
+              315847,
+              291263,
+              287756,
+              291965,
+              286472,
+              285368,
+              278590
+            ],
+            "previous": [
+              290270,
+              306375,
+              292006,
+              299069,
+              313444,
+              289930,
+              298875
+            ],
+            "native": [
+              144208,
+              160888,
+              149812,
+              146180,
+              141243,
+              141902,
+              153972
+            ]
+          },
+          "medianCpuNs": {
+            "release": 287756,
+            "previous": 298875,
+            "native": 146180
+          }
+        },
+        "8/idle": {
+          "samplesCpuNs": {
+            "release": [
+              1706666,
+              1647055,
+              1591388,
+              1661555,
+              1593333,
+              1615333,
+              1631388
+            ],
+            "previous": [
+              1690166,
+              1590388,
+              1624611,
+              1740111,
+              1622166,
+              1600888,
+              1698333
+            ],
+            "native": [
+              517222,
+              532111,
+              511777,
+              544333,
+              515444,
+              534055,
+              542388
+            ]
+          },
+          "medianCpuNs": {
+            "release": 1631388,
+            "previous": 1624611,
+            "native": 532111
+          }
+        },
+        "8/active": {
+          "samplesCpuNs": {
+            "release": [
+              1932555,
+              1881666,
+              1830944,
+              1800055,
+              1807388,
+              1806277,
+              1834166
+            ],
+            "previous": [
+              1900444,
+              2000055,
+              1825666,
+              1852611,
+              1841722,
+              1822055,
+              1835555
+            ],
+            "native": [
+              776444,
+              722333,
+              706222,
+              710722,
+              749111,
+              702222,
+              712333
+            ]
+          },
+          "medianCpuNs": {
+            "release": 1830944,
+            "previous": 1841722,
+            "native": 712333
+          }
+        },
+        "8/queued": {
+          "samplesCpuNs": {
+            "release": [
+              1865944,
+              1840555,
+              1872555,
+              1826055,
+              1830944,
+              1856944,
+              1832333
+            ],
+            "previous": [
+              1845944,
+              1887388,
+              1831500,
+              1938111,
+              1834888,
+              1844555,
+              1854055
+            ],
+            "native": [
+              698055,
+              703055,
+              696222,
+              692666,
+              719166,
+              698555,
+              711611
+            ]
+          },
+          "medianCpuNs": {
+            "release": 1840555,
+            "previous": 1845944,
+            "native": 698555
+          }
+        },
+        "32/idle": {
+          "samplesCpuNs": {
+            "release": [
+              6128833,
+              5888666,
+              5945583,
+              6156416,
+              6349583,
+              6081166,
+              6022083
+            ],
+            "previous": [
+              6077000,
+              6065333,
+              6173666,
+              6073833,
+              6324666,
+              6333083,
+              6188416
+            ],
+            "native": [
+              1775250,
+              1857750,
+              1921750,
+              1814916,
+              1998250,
+              1855750,
+              1905083
+            ]
+          },
+          "medianCpuNs": {
+            "release": 6081166,
+            "previous": 6173666,
+            "native": 1857750
+          }
+        },
+        "32/active": {
+          "samplesCpuNs": {
+            "release": [
+              6979833,
+              6955916,
+              6795750,
+              6767583,
+              6865583,
+              6802250,
+              6764583
+            ],
+            "previous": [
+              6935000,
+              7116916,
+              6952916,
+              6875250,
+              6866250,
+              6825916,
+              6970833
+            ],
+            "native": [
+              2484666,
+              2540666,
+              2546750,
+              2574500,
+              2574333,
+              2566666,
+              2505833
+            ]
+          },
+          "medianCpuNs": {
+            "release": 6802250,
+            "previous": 6935000,
+            "native": 2546750
+          }
+        },
+        "8/missing": {
+          "samplesCpuNs": {
+            "release": [
+              694500,
+              705222,
+              702611,
+              785944,
+              706277,
+              698333,
+              701666
+            ],
+            "previous": [
+              800277,
+              726166,
+              703611,
+              739388,
+              713444,
+              694777,
+              693722
+            ],
+            "native": [
+              708111,
+              697000,
+              734000,
+              712333,
+              716722,
+              708444,
+              706000
+            ]
+          },
+          "medianCpuNs": {
+            "release": 702611,
+            "previous": 713444,
+            "native": 708444
+          }
+        }
+      },
+      "archiveHostBinaries": {
+        "release": "5ab8beffa7c15e226ce36aed6890b94b44ce7c4175d060ad71876fe1524aba2e",
+        "previous": "96b9daab611f5073fd12313d43340581f7eb9789d6492b68bdb84438d24cc61c",
+        "native": "aecb0584aab6c07190c0b5038107d01c5173e1538a66a6a5ae15ba2c001ec1d2",
+        "swift": "3d325be66ec193d9eb94f859bd278ae0c3e6c8c26602399f94e01f9aca6191bd"
+      }
+    }
+  },
+  "directABI": "Per ISA: actual Foundation vs Rust bitwise mtime on 13,000 APFS timestamp pairs and size. Previous stamp exact hit, different size and nextUp date misses also checked, plus 5 invalid/special cases.",
+  "xctest": "Unmodified repository ClaudeSessionTests.swift and ClaudeTranscriptTests.swift linked with verbatim current code in a dedicated SwiftPM package. All 69 passed, zero skips (including opt-in subagent performance case and actual initial monitor readiness/stop).",
+  "rustBridge": "69 Rust tests; cargo fmt --check and clippy -D warnings passed.",
+  "additional": {
+    "arm64": {
+      "1/idle/first": {
+        "samples": {
+          "release": [
+            889416,
+            864250,
+            1068583,
+            799333,
+            801666,
+            807833,
+            822500
+          ],
+          "previous": [
+            455416,
+            578583,
+            429000,
+            404166,
+            406583,
+            402083,
+            399416
+          ],
+          "native": [
+            316916,
+            366250,
+            388250,
+            265750,
+            261500,
+            282416,
+            267750
+          ]
+        },
+        "median": {
+          "release": 822500,
+          "previous": 406583,
+          "native": 282416
+        }
+      },
+      "1/active/first": {
+        "samples": {
+          "release": [
+            897416,
+            904916,
+            881833,
+            815416,
+            848750,
+            827833,
+            814416
+          ],
+          "previous": [
+            443416,
+            433416,
+            434000,
+            427833,
+            415166,
+            418916,
+            427916
+          ],
+          "native": [
+            289000,
+            300750,
+            301916,
+            286083,
+            275916,
+            285500,
+            280750
+          ]
+        },
+        "median": {
+          "release": 848750,
+          "previous": 427916,
+          "native": 286083
+        }
+      },
+      "8/active/first": {
+        "samples": {
+          "release": [
+            4037750,
+            4160000,
+            3992083,
+            4669750,
+            4008416,
+            4035000,
+            4073000
+          ],
+          "previous": [
+            2223916,
+            2226083,
+            2322666,
+            2237583,
+            2227500,
+            2263416,
+            2285833
+          ],
+          "native": [
+            1304083,
+            1327000,
+            1284666,
+            1304166,
+            1257583,
+            1288500,
+            1266500
+          ]
+        },
+        "median": {
+          "release": 4037750,
+          "previous": 2237583,
+          "native": 1288500
+        }
+      },
+      "1/active/changed": {
+        "samples": {
+          "release": [
+            890166,
+            891083,
+            891583,
+            875500,
+            903000,
+            901416,
+            878833
+          ],
+          "previous": [
+            462500,
+            465333,
+            462333,
+            465166,
+            475500,
+            446416,
+            455000
+          ],
+          "native": [
+            319666,
+            314916,
+            332083,
+            319833,
+            309916,
+            322416,
+            309083
+          ]
+        },
+        "median": {
+          "release": 891083,
+          "previous": 462500,
+          "native": 319666
+        }
+      },
+      "8/queued/changed": {
+        "samples": {
+          "release": [
+            133532250,
+            132891833,
+            133261250,
+            133616250,
+            137618500,
+            135666916,
+            137248666
+          ],
+          "previous": [
+            67859000,
+            68525833,
+            68772250,
+            68167750,
+            70280833,
+            71181750,
+            70699083
+          ],
+          "native": [
+            67378583,
+            67559583,
+            67399083,
+            67571500,
+            68387500,
+            70285333,
+            69760250
+          ]
+        },
+        "median": {
+          "release": 133616250,
+          "previous": 68772250,
+          "native": 67571500
+        }
+      }
+    },
+    "x86_64": {
+      "1/idle/first": {
+        "samples": {
+          "release": [
+            1376916,
+            1564166,
+            1461166,
+            1420750,
+            1399416,
+            1381583,
+            1429500
+          ],
+          "previous": [
+            723583,
+            732666,
+            700833,
+            742666,
+            729583,
+            702916,
+            680416
+          ],
+          "native": [
+            469333,
+            489000,
+            466500,
+            447666,
+            433416,
+            425916,
+            435583
+          ]
+        },
+        "median": {
+          "release": 1420750,
+          "previous": 723583,
+          "native": 447666
+        }
+      },
+      "1/active/first": {
+        "samples": {
+          "release": [
+            1436250,
+            1379750,
+            1381500,
+            1404416,
+            1487500,
+            1460583,
+            1542500
+          ],
+          "previous": [
+            742833,
+            734000,
+            709750,
+            732583,
+            762416,
+            730333,
+            751416
+          ],
+          "native": [
+            477750,
+            447833,
+            504500,
+            471333,
+            453916,
+            523583,
+            548666
+          ]
+        },
+        "median": {
+          "release": 1436250,
+          "previous": 734000,
+          "native": 477750
+        }
+      },
+      "8/active/first": {
+        "samples": {
+          "release": [
+            7213916,
+            6558666,
+            6474583,
+            6123750,
+            6168750,
+            6229416,
+            6387166
+          ],
+          "previous": [
+            3140833,
+            3218250,
+            3056416,
+            3034000,
+            3066666,
+            2992000,
+            2978500
+          ],
+          "native": [
+            1909333,
+            1741666,
+            1894416,
+            1893666,
+            1790250,
+            1810083,
+            1744250
+          ]
+        },
+        "median": {
+          "release": 6387166,
+          "previous": 3056416,
+          "native": 1810083
+        }
+      },
+      "1/active/changed": {
+        "samples": {
+          "release": [
+            1437750,
+            1506750,
+            1484000,
+            1483583,
+            2292750,
+            1462750,
+            1404916
+          ],
+          "previous": [
+            725666,
+            739000,
+            752666,
+            740250,
+            835250,
+            1051833,
+            781166
+          ],
+          "native": [
+            477250,
+            484250,
+            479916,
+            486333,
+            578333,
+            486000,
+            485666
+          ]
+        },
+        "median": {
+          "release": 1483583,
+          "previous": 752666,
+          "native": 485666
+        }
+      },
+      "8/queued/changed": {
+        "samples": {
+          "release": [
+            247313333,
+            244384583,
+            245993666,
+            249495166,
+            244996000,
+            247066000,
+            243809916
+          ],
+          "previous": [
+            124915583,
+            123788583,
+            127807250,
+            126726666,
+            125483333,
+            126112666,
+            124582083
+          ],
+          "native": [
+            121944583,
+            123576583,
+            122351833,
+            123716666,
+            123476416,
+            126104833,
+            123134333
+          ]
+        },
+        "median": {
+          "release": 245993666,
+          "previous": 125483333,
+          "native": 123476416
+        }
+      }
+    }
+  },
+  "independent": {
+    "sha256": "d7011405131091120a628d778203522613e7b81ff1f2b782d16e7f8f9f003c62",
+    "dimensions": {
+      "functionality": "TIE",
+      "facts": "TIE",
+      "security": "TIE",
+      "maintainability": "TIE",
+      "scope": "TIE",
+      "performance": "A"
+    },
+    "checks": null
+  },
+  "formal": {
+    "decision": "INCONCLUSIVE",
+    "blockers": [],
+    "missing": [
+      "baseline not passing",
+      "candidate check unavailable",
+      "independent code review missing/stale"
+    ],
+    "import": {
+      "error": "Operator review requires an interactive terminal; a worker JSON/flag cannot attest it",
+      "decision": "INCONCLUSIVE"
+    }
+  },
+  "evidence": {
+    "xctest.log": "abcb2a3b4fc8e9158ed3d3b655c6a8bb28b39c658770c70159c5c62c676a99e9",
+    "rust-test.log": "a65412c0c4626746fee8a472eebc18037a1fcf2bce5c3951454700b890b2320b",
+    "clippy.log": "90bcc3e125323a186a2317234f1dd081b4a4ea8bef5498cf04d617e5a56b31f3",
+    "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "additional/result.json": "0fbcacc98a5f753977b970a0f2fdf89b218bce7f9bd173d0f4af7ce9274c612f",
+    "packet.json": "3a0809205caf5b5a493928d8e4c69210bc3255a2d13c99775811ea1e7f11039a",
+    "gate.json": "0fd8e326ee0547dcee5a9e99d3ee450443472b1589679d4cbbc3fea85a7e5e5c",
+    "summary.json": "3b14cc2efbab0342cf51508e650624edbc8689424f828cf45846312fd6798e96"
+  },
+  "integratedProduct": "5cc6193d",
+  "integratedNativeContracts": {
+    "arm64": "arm64 63 complete monitor snapshots per host d475d01867de9e292c86ae2f9ea4b6bcb6be79ee1692eecc63fcb1aabe0f2966",
+    "x86_64": "x86_64 63 complete monitor snapshots per host d475d01867de9e292c86ae2f9ea4b6bcb6be79ee1692eecc63fcb1aabe0f2966"
+  }
+}

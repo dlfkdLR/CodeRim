@@ -1,0 +1,590 @@
+{
+  "product": "555e2e2cf8f71ed31eef5d2ede0d9f0fc17fb069",
+  "originalDeviceReport": "d0566855",
+  "sourceCompared": "a3f88f14e76bf35e0376a2f05c67b67f7b0e4d39",
+  "approvedBehavior": "On a conflict between a restored device identity and the SQLite pairing, require a new pairing of the affected desktop and preserve the original rows.",
+  "localWorkerUpgradeAndRollback": {
+    "wire": [
+      [
+        "POST",
+        "/fixture/init",
+        200
+      ],
+      [
+        "POST",
+        "/v1/snapshot",
+        200
+      ],
+      [
+        "POST",
+        "/fixture/restore",
+        200
+      ],
+      [
+        "GET",
+        "/fixture/history",
+        200
+      ],
+      [
+        "POST",
+        "/v1/snapshot",
+        401
+      ],
+      [
+        "GET",
+        "/fixture/history",
+        200
+      ],
+      [
+        "PUT",
+        "/v1/device",
+        401
+      ],
+      [
+        "GET",
+        "/fixture/history",
+        200
+      ],
+      [
+        "DELETE",
+        "/v1/session",
+        401
+      ],
+      [
+        "GET",
+        "/fixture/history",
+        200
+      ],
+      [
+        "POST",
+        "/v1/pairing/start",
+        200
+      ],
+      [
+        "POST",
+        "/v1/pairing/claim",
+        200
+      ],
+      [
+        "POST",
+        "/v1/pairing/poll",
+        200
+      ],
+      [
+        "POST",
+        "/v1/snapshot",
+        200
+      ],
+      [
+        "GET",
+        "/fixture/history",
+        200
+      ],
+      [
+        "POST",
+        "/v1/snapshot",
+        401
+      ],
+      [
+        "POST",
+        "/v1/snapshot",
+        200
+      ],
+      [
+        "GET",
+        "/fixture/history",
+        200
+      ],
+      [
+        "POST",
+        "/v1/snapshot",
+        200
+      ],
+      [
+        "GET",
+        "/fixture/history",
+        200
+      ]
+    ],
+    "oldRowPreserved": true,
+    "coldBoots": [
+      "stable",
+      "candidate",
+      "candidate",
+      "stable"
+    ],
+    "outbound": 0
+  },
+  "localFullWorkerRoundTrip": {
+    "workerdVersion": "1.20261123.1",
+    "miniflareVersion": "5.20261123.1-beta",
+    "wranglerVersion": "4.168.0",
+    "requests": 44,
+    "processes": 5,
+    "outbound": 0,
+    "comparison": "Compared complete JSON on fresh load for both owners except per-request evaluatedAt after validating numeric type.",
+    "phases": [
+      {
+        "label": "seed two owned accounts",
+        "rev": "stable",
+        "entries": [
+          {
+            "owner": "first",
+            "devices": 2,
+            "revision": 0,
+            "generation": 2,
+            "names": [
+              "Desk A",
+              "Desk B"
+            ]
+          },
+          {
+            "owner": "second",
+            "devices": 1,
+            "revision": 0,
+            "generation": 1,
+            "names": [
+              "Desk C"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "upgrade, change picker and rename a desktop",
+        "rev": "candidate",
+        "entries": [
+          {
+            "owner": "first",
+            "devices": 2,
+            "revision": 2,
+            "generation": 3,
+            "names": [
+              "Desk A",
+              "Renamed 데스크톱"
+            ]
+          },
+          {
+            "owner": "second",
+            "devices": 1,
+            "revision": 0,
+            "generation": 1,
+            "names": [
+              "Desk C"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "rollback reads candidate writes, publish again on release",
+        "rev": "stable",
+        "entries": [
+          {
+            "owner": "first",
+            "devices": 2,
+            "revision": 2,
+            "generation": 3,
+            "names": [
+              "Desk A",
+              "Renamed 데스크톱"
+            ]
+          },
+          {
+            "owner": "second",
+            "devices": 1,
+            "revision": 0,
+            "generation": 2,
+            "names": [
+              "Desk C"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "re-upgrade sees rollback write",
+        "rev": "candidate",
+        "entries": [
+          {
+            "owner": "first",
+            "devices": 2,
+            "revision": 2,
+            "generation": 4,
+            "names": [
+              "Desk A",
+              "Renamed 데스크톱"
+            ]
+          },
+          {
+            "owner": "second",
+            "devices": 1,
+            "revision": 0,
+            "generation": 2,
+            "names": [
+              "Desk C"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "final release reopen",
+        "rev": "stable",
+        "entries": [
+          {
+            "owner": "first",
+            "devices": 2,
+            "revision": 2,
+            "generation": 4,
+            "names": [
+              "Desk A",
+              "Renamed 데스크톱"
+            ]
+          },
+          {
+            "owner": "second",
+            "devices": 1,
+            "revision": 0,
+            "generation": 2,
+            "names": [
+              "Desk C"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "independent": {
+    "reviewer": "platform-verification independent context",
+    "status": "PASS_SCOPED",
+    "reference": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+    "base": "7cd8598690e78705424360b076560887ceb5016e",
+    "sourceSHA256": {
+      "relay.mjs": "a7c31d37e430ee3afb4cb70f961401a12e3ff55f5db3a3d6434b669b33e405ee",
+      "store.mjs": "91406623ea1d47db37a4cdf579773ae72d34ee1e118a271e9c2f44c88a822b6b"
+    },
+    "packetInspected": "packet-55350a72dde44589b9de30332e121dca",
+    "packetDigest": "28b0f949458f6d11d811cb39a200e514967cd6c259b5561a5126040a2af15450",
+    "method": "Separate Node built-in SQLite files and process-level modules, synthetic deterministic identifiers for each revision. Compared route response/error, before and after all rows, repairs and reopened SQLite stores after each fixture.",
+    "casesPerImplementation": 52,
+    "originalDifferences": [
+      "malformed/steady",
+      "active-null/steady",
+      "active-null/change",
+      "expired-null/change",
+      "cold-malformed/steady",
+      "cold-null/steady",
+      "cold-null/change",
+      "missing-malformed/steady",
+      "missing-malformed/change",
+      "blob-object/steady",
+      "blob-object/change",
+      "shadow-session/steady",
+      "shadow-session/change",
+      "shadow-id/change",
+      "cold-blob-object/steady",
+      "cold-blob-object/change"
+    ],
+    "candidateDifferences": [
+      "shadow-id/change",
+      "shadow-id/steady",
+      "solo-own-shadow-id/change",
+      "solo-own-shadow-id/steady"
+    ],
+    "partialIndex": {
+      "ddl": "CREATE INDEX devices_unreadable ON devices(owner) WHERE CASE WHEN typeof(data)='text' AND json_valid(data) THEN json_type(data)='null' ELSE 1 END",
+      "healthyUnreadableRows": 0,
+      "queryPlan": [
+        "SEARCH devices USING INDEX devices_unreadable (owner=?)"
+      ]
+    },
+    "covered": [
+      "Healthy reports, active malformed text, active JSON null, missing pairing with malformed sibling, other owner, corrected row, cold reopen, numbers and nested names"
+    ],
+    "remaining": [],
+    "workerdMeasurementsFromSuppliedArtifact": {
+      "stable/missing/1": [
+        3,
+        3
+      ],
+      "stable/saved/1": [
+        4,
+        4
+      ],
+      "stable/missing/8": [
+        17,
+        17
+      ],
+      "stable/saved/8": [
+        18,
+        18
+      ],
+      "stable/missing/16": [
+        33,
+        33
+      ],
+      "stable/saved/16": [
+        34,
+        34
+      ],
+      "candidate/missing/1": [
+        3,
+        3
+      ],
+      "candidate/saved/1": [
+        4,
+        4
+      ],
+      "candidate/missing/8": [
+        3,
+        3
+      ],
+      "candidate/saved/8": [
+        4,
+        4
+      ],
+      "candidate/missing/16": [
+        3,
+        3
+      ],
+      "candidate/saved/16": [
+        4,
+        4
+      ]
+    },
+    "independentArtifacts": [
+      "independent.mjs",
+      "independent-cases.json",
+      "independent-cases-a3f88f14.log",
+      "independent-solo.mjs",
+      "independent-solo-cases.json",
+      "independent-solo.log",
+      "independent-repair.mjs",
+      "independent-repair.json",
+      "independent-repair-a3f88f14.log"
+    ],
+    "limitations": [
+      "Fresh compatibility matrix used Node SQLite. Supplied workerd measurements are from the project worker, independently inspected but not rerun. No production storage or externally authenticated operations."
+    ],
+    "candidate": "a3f88f14e76bf35e0376a2f05c67b67f7b0e4d39",
+    "approvedIdentityConflictBehavior": "Both id/session conflicts now require re-pairing, 401 pairing_required, preserving every prior byte. Public release differed only for the two id cases; those are covered by the updated user specification.",
+    "releaseExactCases": 48,
+    "userDefinedCasesPassed": 52,
+    "rePairAtLimit": {
+      "id": {
+        "rejectedRoutes": 3,
+        "replacementReportedBeforeAndAfterReopen": true,
+        "oldRowsBytesPreserved": true,
+        "rowsAfterRepair": 17,
+        "secondReplacementRejectedAtHealthyLimit": true
+      },
+      "session": {
+        "rejectedRoutes": 3,
+        "replacementReportedBeforeAndAfterReopen": true,
+        "oldRowsBytesPreserved": true,
+        "rowsAfterRepair": 17,
+        "secondReplacementRejectedAtHealthyLimit": true
+      }
+    },
+    "formalHarness": "Separate direct independent verification; no operator attestation.",
+    "comparison": "52 independent route/data comparisons against the release, including 16 single-device short-path cases. All satisfy the approved policy. The four allowed differences are the id-shadow steady and changed responses in the solo and sibling fixtures.",
+    "scenarioSets": {
+      "independent-cases.json": {
+        "count": 36,
+        "exactPublic": 34,
+        "approvedIdConflictDifferences": [
+          "shadow-id/change",
+          "shadow-id/steady"
+        ]
+      },
+      "independent-solo-cases.json": {
+        "count": 16,
+        "exactPublic": 14,
+        "approvedIdConflictDifferences": [
+          "solo-own-shadow-id/change",
+          "solo-own-shadow-id/steady"
+        ]
+      }
+    }
+  },
+  "preRecoveryOptimization": {
+    "source": "0b49c3c799f3bc7ea31caf16b9bc74c573a559a0",
+    "evidenceSha256": "68154930e4ee9cdba83ecbc506764f61b02bd16e0f8025f02f7a0ee64a566af6"
+  },
+  "localWorkerRows": {
+    "stable/missing/1": {
+      "sqlRowsRead": [
+        3
+      ],
+      "sqlRowsWritten": [
+        0
+      ],
+      "samples": 12
+    },
+    "stable/saved/1": {
+      "sqlRowsRead": [
+        4
+      ],
+      "sqlRowsWritten": [
+        0
+      ],
+      "samples": 12
+    },
+    "stable/missing/8": {
+      "sqlRowsRead": [
+        17
+      ],
+      "sqlRowsWritten": [
+        0
+      ],
+      "samples": 12
+    },
+    "stable/saved/8": {
+      "sqlRowsRead": [
+        18
+      ],
+      "sqlRowsWritten": [
+        0
+      ],
+      "samples": 12
+    },
+    "stable/missing/16": {
+      "sqlRowsRead": [
+        33
+      ],
+      "sqlRowsWritten": [
+        0
+      ],
+      "samples": 12
+    },
+    "stable/saved/16": {
+      "sqlRowsRead": [
+        34
+      ],
+      "sqlRowsWritten": [
+        0
+      ],
+      "samples": 12
+    },
+    "candidate/missing/1": {
+      "sqlRowsRead": [
+        3
+      ],
+      "sqlRowsWritten": [
+        0
+      ],
+      "samples": 12
+    },
+    "candidate/saved/1": {
+      "sqlRowsRead": [
+        4
+      ],
+      "sqlRowsWritten": [
+        0
+      ],
+      "samples": 12
+    },
+    "candidate/missing/8": {
+      "sqlRowsRead": [
+        3
+      ],
+      "sqlRowsWritten": [
+        0
+      ],
+      "samples": 12
+    },
+    "candidate/saved/8": {
+      "sqlRowsRead": [
+        4
+      ],
+      "sqlRowsWritten": [
+        0
+      ],
+      "samples": 12
+    },
+    "candidate/missing/16": {
+      "sqlRowsRead": [
+        3
+      ],
+      "sqlRowsWritten": [
+        0
+      ],
+      "samples": 12
+    },
+    "candidate/saved/16": {
+      "sqlRowsRead": [
+        4
+      ],
+      "sqlRowsWritten": [
+        0
+      ],
+      "samples": 12
+    }
+  },
+  "transitionCpuMedianUs": {
+    "1/2/steady": {
+      "public": 96.5,
+      "original": 90.6,
+      "combined": 119.1,
+      "split": 96.7
+    },
+    "1/2/change": {
+      "public": 225.1,
+      "original": 187.0,
+      "combined": 230.6,
+      "split": 242.0
+    },
+    "1/70/steady": {
+      "public": 324.0,
+      "original": 320.7,
+      "combined": 341.5,
+      "split": 346.7
+    },
+    "1/70/change": {
+      "public": 696.4,
+      "original": 472.6,
+      "combined": 641.1,
+      "split": 558.5
+    },
+    "8/2/steady": {
+      "public": 142.2,
+      "original": 97.8,
+      "combined": 99.8,
+      "split": 110.6
+    },
+    "8/70/change": {
+      "public": 1789.6,
+      "original": 757.5,
+      "combined": 839.9,
+      "split": 738.7
+    },
+    "16/70/steady": {
+      "public": 1467.4,
+      "original": 283.2,
+      "combined": 295.3,
+      "split": 331.5
+    }
+  },
+  "benchmark": "Node SQLite Relay.route and pending tasks. Six rotated fresh processes per version at each size, six measured blocks per process after warm-up. Synthetic devices with either 2 or 70 providers. public=v2.1.41, original=Rust device report before damaged-row correction, combined=intermediate single-query recovery, split=selected change.",
+  "formal": {
+    "decision": "REJECT",
+    "reason": [
+      {
+        "categories": [
+          "SECURITY",
+          "EVIDENCE_INVALID"
+        ],
+        "severity": "critical",
+        "message": "Verification input changed",
+        "paths": [
+          "MobileRelay/test/restored-device.test.mjs"
+        ]
+      }
+    ]
+  },
+  "files": {
+    "query-controlled.json": "9b46864dd25e25096ed557abf30607257a1bcfb56bec0f5538ac5c03ff92341c",
+    "verified-local-pairing.json": "b73972b9ff3fb40d1670df2dacd5dcac30c9329f2006806643f0ad96ba94711f",
+    "independent.json": "1c22b7ce79ba1ca4fb1dd72b2d472021af9be03c0677201de1294a66703d858b",
+    "split-suite.log": "cdd3dacc6cca5b8ab1541feb983d5838eb01d3dd509f97148ed30cb1d93849e3",
+    "roundtrip.json": "cc9c4f8ca0ad091bce17e2f5c72bcc184a80cbab588bcdcd26cc174413e7bcbb",
+    "last-workerd-sql-rows.json": "df2c8fcddbf28b468ab02677bb4798f9a5c56fa8b548268a0fa8244ebd903234"
+  }
+}

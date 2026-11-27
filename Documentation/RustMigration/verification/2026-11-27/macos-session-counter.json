@@ -1,0 +1,647 @@
+{
+  "scope": "macOS collector session counter lookup and optimistic commit baseline; only generated application-owned SQLite and JSONL fixtures",
+  "published": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "preexisting_negative_quality_repair": "e6af546998b2314b778e2617628bfd8c02723bae",
+  "base": "f440a9d052d9a803956dd40686f5977ec1fc08d9",
+  "product": "87fcd8faef54aab14d8256e4932353ca0d8923b4",
+  "final": "13c76e4f4336d7c951baed24c0dd44c722dfe599",
+  "worktree_clean": true,
+  "packet_digest": "e7bdf4c535a4da75211516ab0cb1ad77c81076f6b9d692fedfe7cfda4c38ff48",
+  "archive_before_rustfmt_equals_final": true,
+  "machines": {
+    "host": "arm64",
+    "OS": "26.6.2",
+    "target": "macOS 14.0+",
+    "x86_64": "Rosetta 2 on the same Apple Silicon Mac"
+  },
+  "architecture": {
+    "arm64": {
+      "collectorLookup": {
+        "actions": 641,
+        "reopen_queries": 264,
+        "published_negative_quality_changes": 162,
+        "release_previous_candidate_sha256": [
+          "a952d7edbc88fe1563ab6395bb714656e7b9773b53b0d1b08797cd103401f9be",
+          "a0c7681b6fb2b6560b37d701d012a4fd4720d83f6c8292fc4aeda50eb2c9fb21",
+          "a0c7681b6fb2b6560b37d701d012a4fd4720d83f6c8292fc4aeda50eb2c9fb21"
+        ]
+      },
+      "historical_starting_schema_versions": [
+        2,
+        3,
+        4,
+        7,
+        12,
+        13,
+        15,
+        16,
+        17
+      ],
+      "damaged_files_returned_errors": [
+        [
+          "Database operation failed: database disk image is malformed",
+          "Database operation failed: database disk image is malformed"
+        ],
+        [
+          "open Database statement failed: file is not a database"
+        ]
+      ],
+      "independent_sqlite_abi": {
+        "reads": 1257,
+        "rows": 603,
+        "absent": 300,
+        "prepareErrors": 42,
+        "keyErrors": 303,
+        "bindErrors": 3,
+        "stepErrors": 6,
+        "walSnapshotCommits": 144,
+        "cleanReopens": 3
+      },
+      "collectorRefreshesPerBinaryPair": 9,
+      "binaryPairs": 4,
+      "actor_microseconds_median_wall_cpu_release_previous_candidate": {
+        "single-hit": [
+          [
+            20.323,
+            14.479
+          ],
+          [
+            20.019,
+            14.735
+          ],
+          [
+            7.822,
+            5.692
+          ]
+        ],
+        "distinct-hits": [
+          [
+            25.026,
+            15.234
+          ],
+          [
+            24.113,
+            14.7
+          ],
+          [
+            9.49,
+            6.066
+          ]
+        ],
+        "mixed": [
+          [
+            27.178,
+            15.305
+          ],
+          [
+            25.701,
+            14.837
+          ],
+          [
+            10.548,
+            7.226
+          ]
+        ],
+        "miss": [
+          [
+            26.1,
+            14.723
+          ],
+          [
+            22.155,
+            13.075
+          ],
+          [
+            16.116,
+            8.235
+          ]
+        ]
+      },
+      "complete_refresh_interleaved_ms": {
+        "first": {
+          "pairs": 6,
+          "median_wall_cpu_ms": [
+            [
+              3.963875,
+              3.3415
+            ],
+            [
+              4.4207920000000005,
+              3.6795
+            ]
+          ],
+          "paired_wall_cpu_delta_ms": [
+            0.043458,
+            0.05500000000000016
+          ],
+          "per_wave_delta_ms": [
+            [
+              -0.5560830000000001,
+              -0.08899999999999952
+            ],
+            [
+              -0.41891699999999954,
+              -0.1299999999999999
+            ],
+            [
+              1.3616670000000002,
+              0.6390000000000002
+            ],
+            [
+              0.7700830000000001,
+              0.5310000000000001
+            ],
+            [
+              -0.2278340000000001,
+              -0.10999999999999988
+            ],
+            [
+              0.3147500000000001,
+              0.19899999999999984
+            ]
+          ]
+        },
+        "unchanged": {
+          "pairs": 576,
+          "median_wall_cpu_ms": [
+            [
+              0.285354,
+              0.2825
+            ],
+            [
+              0.285083,
+              0.283
+            ]
+          ],
+          "paired_wall_cpu_delta_ms": [
+            -0.0025620000000000087,
+            -0.0020000000000000018
+          ],
+          "per_wave_delta_ms": [
+            [
+              -0.003874500000000003,
+              -0.003500000000000003
+            ],
+            [
+              -0.0068959999999999855,
+              -0.009500000000000008
+            ],
+            [
+              0.0004579999999999862,
+              0.004500000000000004
+            ],
+            [
+              -0.0016245000000000148,
+              -0.0015000000000000013
+            ],
+            [
+              -0.0025620000000000087,
+              -0.0020000000000000018
+            ],
+            [
+              -0.0032090000000000035,
+              -0.003500000000000003
+            ]
+          ]
+        },
+        "append": {
+          "pairs": 576,
+          "median_wall_cpu_ms": [
+            [
+              0.942458,
+              0.9255
+            ],
+            [
+              0.925854,
+              0.9195
+            ]
+          ],
+          "paired_wall_cpu_delta_ms": [
+            -0.022458500000000048,
+            -0.015000000000000013
+          ],
+          "per_wave_delta_ms": [
+            [
+              -0.05602099999999993,
+              -0.049500000000000044
+            ],
+            [
+              -0.09931199999999996,
+              -0.08849999999999997
+            ],
+            [
+              -0.014458499999999985,
+              -0.0040000000000000036
+            ],
+            [
+              -0.008937499999999987,
+              0.0005000000000000004
+            ],
+            [
+              0.0057915000000000605,
+              0.005500000000000005
+            ],
+            [
+              -0.012958000000000025,
+              -0.014000000000000012
+            ]
+          ]
+        }
+      }
+    },
+    "x86_64": {
+      "collectorLookup": {
+        "actions": 641,
+        "reopen_queries": 264,
+        "published_negative_quality_changes": 162,
+        "release_previous_candidate_sha256": [
+          "a952d7edbc88fe1563ab6395bb714656e7b9773b53b0d1b08797cd103401f9be",
+          "a0c7681b6fb2b6560b37d701d012a4fd4720d83f6c8292fc4aeda50eb2c9fb21",
+          "a0c7681b6fb2b6560b37d701d012a4fd4720d83f6c8292fc4aeda50eb2c9fb21"
+        ]
+      },
+      "historical_starting_schema_versions": [
+        2,
+        3,
+        4,
+        7,
+        12,
+        13,
+        15,
+        16,
+        17
+      ],
+      "damaged_files_returned_errors": [
+        [
+          "Database operation failed: database disk image is malformed",
+          "Database operation failed: database disk image is malformed"
+        ],
+        [
+          "open Database statement failed: file is not a database"
+        ]
+      ],
+      "independent_sqlite_abi": {
+        "reads": 1257,
+        "rows": 603,
+        "absent": 300,
+        "prepareErrors": 42,
+        "keyErrors": 303,
+        "bindErrors": 3,
+        "stepErrors": 6,
+        "walSnapshotCommits": 144,
+        "cleanReopens": 3
+      },
+      "collectorRefreshesPerBinaryPair": 9,
+      "binaryPairs": 4,
+      "actor_microseconds_median_wall_cpu_release_previous_candidate": {
+        "single-hit": [
+          [
+            38.272,
+            24.458
+          ],
+          [
+            44.632,
+            28.279
+          ],
+          [
+            9.967,
+            8.67
+          ]
+        ],
+        "distinct-hits": [
+          [
+            24.297,
+            20.926
+          ],
+          [
+            23.771,
+            20.859
+          ],
+          [
+            8.604,
+            7.749
+          ]
+        ],
+        "mixed": [
+          [
+            25.907,
+            20.995
+          ],
+          [
+            24.441,
+            19.759
+          ],
+          [
+            7.764,
+            7.645
+          ]
+        ],
+        "miss": [
+          [
+            20.432,
+            17.556
+          ],
+          [
+            20.65,
+            18.994
+          ],
+          [
+            10.215,
+            8.758
+          ]
+        ]
+      },
+      "complete_refresh_interleaved_ms": {
+        "first": {
+          "pairs": 6,
+          "median_wall_cpu_ms": [
+            [
+              6.5284794999999995,
+              6.012499999999999
+            ],
+            [
+              6.507562,
+              6.0169999999999995
+            ]
+          ],
+          "paired_wall_cpu_delta_ms": [
+            -0.08650049999999965,
+            -0.1160000000000001
+          ],
+          "per_wave_delta_ms": [
+            [
+              -55.60575,
+              -37.184
+            ],
+            [
+              0.15179199999999948,
+              -0.0030000000000001137
+            ],
+            [
+              -0.4921250000000006,
+              -0.375
+            ],
+            [
+              0.11000000000000032,
+              0.14100000000000001
+            ],
+            [
+              -0.2830009999999996,
+              -0.2290000000000001
+            ],
+            [
+              0.40691599999999983,
+              0.40200000000000014
+            ]
+          ]
+        },
+        "unchanged": {
+          "pairs": 576,
+          "median_wall_cpu_ms": [
+            [
+              0.3500835,
+              0.3515
+            ],
+            [
+              0.34462499999999996,
+              0.346
+            ]
+          ],
+          "paired_wall_cpu_delta_ms": [
+            -0.0001244999999999996,
+            0.0
+          ],
+          "per_wave_delta_ms": [
+            [
+              0.006603999999999999,
+              -0.004500000000000004
+            ],
+            [
+              -0.00043750000000000733,
+              0.0010000000000000009
+            ],
+            [
+              -0.0027500000000000024,
+              -0.0020000000000000018
+            ],
+            [
+              0.0008540000000000214,
+              0.0005000000000000004
+            ],
+            [
+              0.0012510000000000021,
+              0.0015000000000000013
+            ],
+            [
+              0.0003129999999999522,
+              0.0015000000000000013
+            ]
+          ]
+        },
+        "append": {
+          "pairs": 576,
+          "median_wall_cpu_ms": [
+            [
+              1.1540210000000002,
+              1.1505
+            ],
+            [
+              1.188833,
+              1.1825
+            ]
+          ],
+          "paired_wall_cpu_delta_ms": [
+            0.014375000000000027,
+            0.011499999999999955
+          ],
+          "per_wave_delta_ms": [
+            [
+              -0.029396500000000048,
+              -0.015499999999999958
+            ],
+            [
+              0.028604000000000074,
+              0.024499999999999855
+            ],
+            [
+              0.004062499999999913,
+              0.0045000000000000595
+            ],
+            [
+              0.020187999999999984,
+              0.027000000000000024
+            ],
+            [
+              0.002583000000000002,
+              0.004999999999999893
+            ],
+            [
+              0.018270500000000023,
+              0.013000000000000067
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "abi_oracle": "Independent C implementation prepares anew. WAL writes, schema/bind/key/step failures and closing result matched; original raw outputs linked.",
+  "integration": "Core build includes released/current product collector refresh/process, source discovery, parsing, persistence and schema. QA-only collector subset omits the unrelated analyticsSnapshot desktop-name enrichment method before compiling. Each release and candidate combination reopened its own generated store. No full app/UI or physical Intel execution in this focused check.",
+  "persistedBehavior": "Both ISAs: nine refreshes per combination preserved missing data, repeated and split JSONL, actual event records and high water marks, partial status on trigger rollback, and exact status on retry. Package checkpoint regression suite: 624 actions and 389 keys on Rosetta.",
+  "old_data": "Published v2.1.41 used stored exact quality for negative high water marks. The already-integrated recovery marks those partial while preserving the numeric values and dates; 162 affected readings among 905. All 905 byte-identical to the repaired reference on each ISA.",
+  "performanceDecision": "Full actor call faster on hit/mixed/miss on both tested ABIs. Whole collector performance INCONCLUSIVE. Process-to-exit and within-batch estimates varied; strictly alternating live processes on 576 appends saw paired wall median -22.46 us arm64 and +14.38 us Rosetta, and unchanged checks -2.56 / -0.12 us. No battery claim.",
+  "formal_gate": "INCONCLUSIVE",
+  "formal_missing_evidence": [
+    "baseline not passing",
+    "candidate check unavailable",
+    "independent code review missing/stale"
+  ],
+  "independent_review_dimensions": {
+    "functionality": "TIE",
+    "facts": "TIE",
+    "security": "TIE",
+    "maintainability": "TIE",
+    "scope": "TIE",
+    "performance": "B"
+  },
+  "attestation": "Operator review requires an interactive terminal; a worker JSON/flag cannot attest it",
+  "remote": "No push, integration, release or production account tests from this worktree.",
+  "artifacts_sha256": {
+    "packet.json": "027741af423dbdcf3f88aae1e161fe4a2e531518858b5bf61efbe9a2952bb8fa",
+    "independent-root.json": "8b4ca076202801b7280e08feedba75938ad6becb2c32898abfe6880929a47e5a",
+    "candidate.patch": "350649d15e2b87feb883d9498c23f225ca2cabb47cd665743ec1a6a60a8e29fb",
+    "gate.json": "2fd95e6f0825c79de7961565f424b749f229bf3ce34e236f26961f7d713abd90",
+    "summary.json": "c7daaa084d1bc259842ec7b3bfa4ef9062c80c57522a859750abcc85e27ac915",
+    "review-import.log": "f44c48e774df41f9b4599a15978aea9960141e1a98f880a81a3e612bc1e1093b",
+    "rust-build.log": "24bc5884bdab0e91678fb08c7b833f76e86bb721c9bc8cedffa3e1872aee4b97",
+    "clippy.log": "ee107190432c1f40bbdc39488d3dd473fed62f1b72750fc08d5db3d241a1ab36",
+    "counter-final.a": "046f088a7335c8a9d65974beeede1469c3ced806126ee530bc0610c8f3d90c1d",
+    "repository-driver-arm64.log": "ae33e9d6c682e5aaff236cd03959b36979cd102f1d2659138fdd57a1570766f4",
+    "checkpoint-regression.log": "bd7b15788130e1c8d8eb884e6da4b6fa4b62199d0ff1f39774aaebdd591e207a",
+    "collector/build.py": "1eaf3d446115152fb7f46dcdd91a5d0a22ab82e0445b75428c77204a8034e6ef",
+    "collector/exercise.py": "87f9a056122e0ab00a3ad297ae879de233e4063be33be0ac9a70156c68354309",
+    "collector/interleave.py": "43730035ce88619b8c8fa9db517d87eac3d9f7a76dc1e6610e966cac23e2f298",
+    "collector/build-timing.py": "cb6a23bcbd5caf76f5f18a12fc0678876b0f36d6f3fbf32c73cbdb90557a595d",
+    "collector/main.swift": "79c89940782d5a3f2db29a21d9a2022ebf501c9828322f4c5f73df4f8d0e2b73",
+    "collector/timing/main.swift": "36fa09e86a8fef38aa49c11a404f252d932d516ba9811473ff88a035f0c1a43c",
+    "collector/refresh-timing.py": "63dee5c70e29707be7c61d3bc814df4b660ff2d7d17bbaad21b348823142354c",
+    "collector/performance.py": "0e604d88c3bccecdb269c297b17511d35b26388f4fd65e73da486151a84d6cf4",
+    "local.py": "918e8091b16f3968c62f08a672da41502487a7854f10b0daaee1e8b9794a0154",
+    "bench.py": "2404548201db31370f01d44ddc71eb206e54d93b86fe7f0b3d46255a82a3d7ff",
+    "main.swift": "5fd48ef224e9f6ee2d87849112322e70f466183c113f637f90773bb554b8871e",
+    "pilot-final-arm.log": "c6d40c5f41d97a764b124c680c69431e5ba6d9bd7b9e6f97f04cd1b44c35b0c7",
+    "arm64.json": "fda8cac75d8ea2c9b7dccbf8cc6aaa6144a9e293360255edd54c9953bf1a2061",
+    "collector/arm64-collector.json": "dc623e9916859d3d362bd76f613a64e114669842e2c2de437924235eb1d9ec35",
+    "collector/arm64-refresh-timing.json": "b60b7fac08fce0a94906257686fc9bb4f230be80c475cc542e7ce32ec4c070b0",
+    "collector/arm64-performance.json": "516194ccdb8f04db6fa03704f131585e06e5541ea830ccc4df454890913fdb1f",
+    "collector/arm64-interleaved-refresh.json": "0423ed624d4fbf3eb64a369dc00a482c4b96f4befc80ade623277b062534941a",
+    "../session-counter-read-independent/result-arm64.json": "b7c6c4421b0dab0e1c4062a758bfd2e1a02c6db39991cd2fc38f71d99a0a80b1",
+    "drivers-arm64/previous/driver": "acba4ed8c9e4282ed7cc1c80a74b4c439674f0309b6b6741ac4df077bba06918",
+    "collector/arm64-previous/collector": "28b5e5d30d848683c2f493fb256eebfcfd4da5fd3717555f444a5a623c59c60a",
+    "drivers-arm64/release/driver": "e31c46d945250780fe6c151ef9f019dabcaa3afb4967541eda38046a27e6e1c2",
+    "collector/arm64-release/collector": "e46c36383fbfafeada67c94c59f539c9d5becd99ec5db0715aba35f88f383937",
+    "drivers-arm64/candidate/driver": "4027b6b132538e74fb021b09e5f21615a876af3dd25922f14667202e5b368bf1",
+    "collector/arm64-candidate/collector": "1b95c3cfa71a7a6d5c660f0c7620bf58afe77ddb512869dadedaab3ee98c0510",
+    "x86_64.json": "2e51998ce63592216c160c91d5acec06096912ba89113a967ce6d14705d2acdd",
+    "collector/x86_64-collector.json": "44019ad9b6c4fc165da8be95755cbbda125d7a09d2a12a408ce3a1cbb61d5880",
+    "collector/x86_64-refresh-timing.json": "331aab30cee7008f2d5f8ec459e54ce1451d52c4e71133f2168b42b95ab14f18",
+    "collector/x86_64-performance.json": "790d4ef236ebdf8ea425800c46b9e6f8c93ee1f68eeede9aedab98e62ea57cb8",
+    "collector/x86_64-interleaved-refresh.json": "ff6e67ff593d29f480740bcb73e4915f9f1d0cd0ad7ad769fe297341606471b0",
+    "../session-counter-read-independent/result-x86_64.json": "b7c6c4421b0dab0e1c4062a758bfd2e1a02c6db39991cd2fc38f71d99a0a80b1",
+    "drivers-x86_64/previous/driver": "21cd452ba2f24ad05da431598b0902683077cce94328aa8f3ae1e9d23835aff7",
+    "collector/x86_64-previous/collector": "29e68ad6922f4cc03f4c19f050544319585373202404b3da62f2d46d753a6123",
+    "drivers-x86_64/release/driver": "af23d936c8d5b77d417ed10b15a406d4b618a3513a3deb167ef7ae9143c0a921",
+    "collector/x86_64-release/collector": "c71e5948e8e94b9b326a4afea768d2e59f877e3f4fcf70feb8d062b9bc9b853d",
+    "drivers-x86_64/candidate/driver": "54092194f64c7696966710e70074f3325774eaa478fe111127eaa09ae5b2c42a",
+    "collector/x86_64-candidate/collector": "8d367f79a2ca6d6d9e79b7aef506bbe60d04f1f22fb5d6c4a6f5105ba635c4da"
+  },
+  "integratedProduct": "80517f49",
+  "independentSqlite": {
+    "run_id": "run-66f90cfb18ba4c57a1ff586fe248b763",
+    "packet_digest": "e7bdf4c535a4da75211516ab0cb1ad77c81076f6b9d692fedfe7cfda4c38ff48",
+    "reviewer_id": "root-independent-sqlite-counter",
+    "commit": "13c76e4f4336d7c951baed24c0dd44c722dfe599",
+    "archiveSha256": "046f088a7335c8a9d65974beeede1469c3ced806126ee530bc0610c8f3d90c1d",
+    "dimensions": {
+      "functionality": {
+        "winner": "TIE",
+        "reason": "Both readers matched SQL result types and cells, missing rows and all four error stages across interleaved WAL transactions.",
+        "evidence": [
+          "baseline/Rust/bridge/src/sqlite_checkpoint.rs",
+          "candidate/Rust/bridge/src/sqlite_checkpoint.rs"
+        ]
+      },
+      "facts": {
+        "winner": "TIE",
+        "reason": "The six selected columns, parameter and returned Swift field mapping are the same.",
+        "evidence": [
+          "baseline/Rust/bridge/src/sqlite_checkpoint.rs",
+          "candidate/Rust/bridge/src/sqlite_checkpoint.rs"
+        ]
+      },
+      "security": {
+        "winner": "TIE",
+        "reason": "The cursor remains under exclusive actor ownership, copies its binding and releases its statement on deinit. No raw result pointer escapes the actor read.",
+        "evidence": [
+          "baseline/Rust/bridge/src/sqlite_checkpoint.rs",
+          "candidate/Rust/bridge/src/sqlite_checkpoint.rs"
+        ]
+      },
+      "maintainability": {
+        "winner": "TIE",
+        "reason": "The second query shares the fixed cursor implementation and row status mapping. The actor explicitly owns one cursor per query.",
+        "evidence": [
+          "baseline/Rust/bridge/src/sqlite_checkpoint.rs",
+          "candidate/Rust/bridge/src/sqlite_checkpoint.rs"
+        ]
+      },
+      "scope": {
+        "winner": "TIE",
+        "reason": "The fixed query is confined to one collector connection. No storage or network deployment was part of this test.",
+        "evidence": [
+          "baseline/Rust/bridge/src/sqlite_checkpoint.rs",
+          "candidate/Rust/bridge/src/sqlite_checkpoint.rs"
+        ]
+      },
+      "performance": {
+        "winner": "B",
+        "reason": "The supplied interleaved actor read benchmark measures less time on the individual query. Independent WAL parity checks measured no end-to-end process or battery performance.",
+        "evidence": [
+          "baseline/Rust/bridge/src/sqlite_checkpoint.rs",
+          "candidate/Rust/bridge/src/sqlite_checkpoint.rs"
+        ]
+      }
+    },
+    "executed": {
+      "arm64": {
+        "reads": 1257,
+        "rows": 603,
+        "absent": 300,
+        "prepareErrors": 42,
+        "keyErrors": 303,
+        "bindErrors": 3,
+        "stepErrors": 6,
+        "walSnapshotCommits": 144,
+        "cleanReopens": 3
+      },
+      "x86_64": {
+        "reads": 1257,
+        "rows": 603,
+        "absent": 300,
+        "prepareErrors": 42,
+        "keyErrors": 303,
+        "bindErrors": 3,
+        "stepErrors": 6,
+        "walSnapshotCommits": 144,
+        "cleanReopens": 3
+      }
+    },
+    "files": {
+      "oracle.c": "bf2ccc8beb76c98890fa3e4b8b8fb103d726396e384ff3fb77fb307ca9acb30d",
+      "result-arm64.json": "b7c6c4421b0dab0e1c4062a758bfd2e1a02c6db39991cd2fc38f71d99a0a80b1",
+      "result-x86_64.json": "b7c6c4421b0dab0e1c4062a758bfd2e1a02c6db39991cd2fc38f71d99a0a80b1",
+      "oracle-arm64": "3d2a4c1d0688ae10548b1afe86bbb4c331974734abf4b1d7bf9d566e2ca94c7d",
+      "oracle-x86_64": "c0d7f71643cab656375eb29f61d615e076885b260b5b6550baa9e5d9025fe20e"
+    },
+    "limits": "Apple Silicon native and Rosetta x86_64. Direct C oracle measures SQL error stage, message and row. Swift lifecycle and timing evidence were reviewed separately."
+  }
+}

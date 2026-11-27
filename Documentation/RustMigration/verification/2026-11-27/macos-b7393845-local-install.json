@@ -1,0 +1,26 @@
+{
+  "bundleID": "dev.codexmeter.CodexMeter",
+  "version": "2.1.41",
+  "installations": {
+    "zip": {
+      "executableSha256": "907ff4ea6eadc81cb073b9e90c87e14f76e03262591fc5ce4685cd348c467c84",
+      "widgetSha256": "c5e10e3fe91e53c5b384aa8ae2bfe96ff97fca9b04dfe4a4377cea9040e2376a",
+      "restartHelperSha256": "2d77fdda2899297bf83694b3418ab7c902d1da1cfe2f10ab420497cb5568bbca",
+      "verifiedRustWidget": true,
+      "version": "CodeRim CLI 2.1.41 (schema 1)",
+      "bytes": 25904454,
+      "packageSha256": "4c1dc058a329c18ae66a1139116fe4b68444601cc6d7b5902f9a3ae713daf360"
+    },
+    "dmg": {
+      "executableSha256": "907ff4ea6eadc81cb073b9e90c87e14f76e03262591fc5ce4685cd348c467c84",
+      "widgetSha256": "c5e10e3fe91e53c5b384aa8ae2bfe96ff97fca9b04dfe4a4377cea9040e2376a",
+      "restartHelperSha256": "2d77fdda2899297bf83694b3418ab7c902d1da1cfe2f10ab420497cb5568bbca",
+      "verifiedRustWidget": true,
+      "version": "CodeRim CLI 2.1.41 (schema 1)",
+      "bytes": 29296858,
+      "packageSha256": "190518524760e1d1652c5837b78bd3036e76937728fc2dcde2de066842b1c45d"
+    }
+  },
+  "product": "b7393845cfb8a88f0637455e536f1dbc26b5482b",
+  "verification": "Local ad-hoc signed Universal 2 app. The two private scratch installations were launched from their separate distribution artifacts."
+}
