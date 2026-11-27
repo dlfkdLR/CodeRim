@@ -1,0 +1,317 @@
+{
+  "product": "0c6814232bf7e9f61aff58ef1175df03a5134d22",
+  "integrationQA": "cc06555f5e62bac584e884273442cf1f9e1fdb54",
+  "sourceSide": "77a841e1c0bf57302da1f52206a920f3dc638ea3",
+  "preceding": "517432bedbfc4ea83f86a9b620a8f3510f296569",
+  "device": {
+    "sha256": "d5cea04fae898316220e4f4763d2844fb4eebb725757d74e2b516966a05a9a93",
+    "executableBytes": 2878608,
+    "sdkTarget": "generic/platform=iOS arm64, Release, CODE_SIGNING_ALLOWED=NO",
+    "symbol": "_cr_mobile_push_token_hex",
+    "archs": "arm64"
+  },
+  "hostRegistration": {
+    "arm64": {
+      "perConfigurationRows": 738,
+      "traceSha256": "658d66258e3f7fd9aaf726213d67c0d42ac1da64ce1e42f1f7cc3e717a39113d",
+      "allocatingWholeStringPerByteAvoided": true,
+      "sourceBuildBenchmarks": {
+        "nsPerRegistration": {
+          "release": [
+            50324.63680555556,
+            44897.91527777778,
+            42166.65694444445,
+            43135.302777777775,
+            52755.67083333333,
+            53178.03333333333,
+            43377.520833333336,
+            42787.39027777778,
+            43901.913194444445
+          ],
+          "native": [
+            46868.311111111114,
+            45234.479166666664,
+            43741.947916666664,
+            45435.49166666667,
+            42662.881944444445,
+            46440.07083333333,
+            44472.54791666667,
+            43854.895833333336,
+            48068.114583333336
+          ],
+          "rust": [
+            28659.094444444443,
+            25549.71736111111,
+            21602.431944444445,
+            23128.33263888889,
+            25757.044444444444,
+            27260.067361111112,
+            21856.755555555555,
+            21632.30972222222,
+            25833.34513888889
+          ]
+        },
+        "medians": {
+          "release": 43901.913194444445,
+          "native": 45234.479166666664,
+          "rust": 25549.71736111111
+        },
+        "checksum": 16105555190088348158
+      },
+      "immediateBeforeAfter": {
+        "nsPerRegistration": {
+          "preceding": [
+            47239.032638888886,
+            44363.1875,
+            43047.70138888889,
+            50535.540972222225,
+            43274.475,
+            42933.058333333334,
+            44155.97430555556,
+            46520.302777777775,
+            42173.45,
+            42386.220138888886,
+            42602.68958333333
+          ],
+          "candidate": [
+            21919.35347222222,
+            22388.25625,
+            21764.574305555554,
+            22906.747916666667,
+            21179.28125,
+            21504.489583333332,
+            25156.253472222223,
+            26307.22013888889,
+            21111.890972222223,
+            21825.36111111111,
+            22248.335416666665
+          ]
+        },
+        "medians": {
+          "preceding": 43274.475,
+          "candidate": 21919.35347222222
+        },
+        "checksum": 16105555190088348158
+      },
+      "archiveSha256": "00853e41c3292fa09d4d43cff50b880d8ed8a927c1d25c6ed1b6d60493fc4bb5"
+    },
+    "x86_64": {
+      "perConfigurationRows": 738,
+      "traceSha256": "658d66258e3f7fd9aaf726213d67c0d42ac1da64ce1e42f1f7cc3e717a39113d",
+      "allocatingWholeStringPerByteAvoided": true,
+      "sourceBuildBenchmarks": {
+        "nsPerRegistration": {
+          "release": [
+            78613.90902777777,
+            75667.30763888889,
+            77413.20555555556,
+            78165.71111111112,
+            74415.4625,
+            76300.63958333334,
+            86711.26597222222,
+            81386.97708333333,
+            84572.52777777778
+          ],
+          "native": [
+            89107.44791666667,
+            80752.0875,
+            79825.2486111111,
+            78668.33888888889,
+            76277.31736111111,
+            78010.53541666667,
+            81946.23194444444,
+            84856.67638888888,
+            83773.15833333334
+          ],
+          "rust": [
+            31191.803472222222,
+            33105.48541666667,
+            30469.625,
+            30680.827777777777,
+            29972.31527777778,
+            30501.659722222223,
+            31877.96111111111,
+            33947.32847222222,
+            34419.86875
+          ]
+        },
+        "medians": {
+          "release": 78165.71111111112,
+          "native": 80752.0875,
+          "rust": 31191.803472222222
+        },
+        "checksum": 16105555190088348158
+      },
+      "immediateBeforeAfter": {
+        "nsPerRegistration": {
+          "preceding": [
+            79405.37986111111,
+            80074.34027777778,
+            92655.66597222222,
+            75787.73611111111,
+            79509.69791666667,
+            76854.33819444444,
+            76621.24583333333,
+            86704.51875,
+            78670.14513888888,
+            75697.18055555556,
+            77008.15069444444
+          ],
+          "candidate": [
+            34625.794444444444,
+            33999.61111111111,
+            124851.36319444445,
+            37826.209027777775,
+            31448.922222222223,
+            33231.39236111111,
+            30842.722916666666,
+            30707.831944444446,
+            30334.939583333333,
+            30500.111805555556,
+            30582.734027777777
+          ]
+        },
+        "medians": {
+          "preceding": 78670.14513888888,
+          "candidate": 31448.922222222223
+        },
+        "checksum": 16105555190088348158
+      },
+      "archiveSha256": "c1f52a2fec90b3ea9cdd7b81b6eb1b04929870f718dbb4c3e2566ec1f8d7a700"
+    }
+  },
+  "independentSha256": "3945d65a5085dd093760c042efe12c71bf22db2767cd05337dc766b9bb05bda0",
+  "independent": {
+    "run_id": "run-029db3ed041c4696834242f61fff09b5",
+    "packet_digest": "80f0ddb00918d3de70067aaeac70c4531eabfbdef2b14f61155a58bcb77d9005",
+    "reviewer_id": "platform-verification independent context",
+    "verdict": "PASS_SCOPED",
+    "reference": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+    "product": "77a841e1c0bf57302da1f52206a920f3dc638ea3",
+    "qa": "4dba2440ebbde454b87eddaf3fc9b6568c51365f",
+    "checkoutAtExecution": "ae0e0e27a5d0bcafe944353f485e59f372454320",
+    "dimensions": {
+      "functionality": {
+        "winner": "TIE",
+        "reason": "Both channels produced the same bodies, waits, cancellation, replacement, login and retry/status traces as the release and native fallback on both host architectures.",
+        "evidence": [
+          "baseline/iOS/CodeRimMobile/MobileAppModel.swift",
+          "candidate/iOS/CodeRimMobile/MobileAppModel.swift",
+          "candidate/Scripts/rust_migration/mobile-registration/fixture.swift"
+        ]
+      },
+      "facts": {
+        "winner": "TIE",
+        "reason": "Mobile API endpoint, generation checks, activity ID and fallback wire format remain identical; only the textual representation constructor is shared.",
+        "evidence": [
+          "baseline/iOS/CodeRimMobile/MobileAppModel.swift",
+          "candidate/iOS/CodeRimMobile/MobileAppModel.swift"
+        ]
+      },
+      "security": {
+        "winner": "TIE",
+        "reason": "Invalid lengths, capacity and null inputs leave canaries unchanged. The safe Rust encoder holds no pointers after return. Swift borrows immutable Data and separately allocates String storage. The fixed digest path retains read-before-write behavior.",
+        "evidence": [
+          "candidate/Rust/bridge/src/mobile.rs",
+          "candidate/Rust/bridge/include/coderim_mobile.h",
+          "candidate/Rust/bridge/src/digest_text.rs",
+          "candidate/iOS/CodeRimMobile/MobileAppModel.swift"
+        ]
+      },
+      "maintainability": {
+        "winner": "B",
+        "reason": "Both existing registration methods now call the same variable-length encoder. It reuses the same two-digit writer as digest IDs and has a scoped external-archive fallback.",
+        "evidence": [
+          "candidate/Rust/bridge/src/mobile.rs",
+          "candidate/iOS/CodeRimMobile/MobileAppModel.swift",
+          "candidate/Rust/bridge/src/digest_text.rs"
+        ]
+      },
+      "scope": {
+        "winner": "TIE",
+        "reason": "The change is confined to ActivityKit token text construction, its narrow header and checks. ActivityKit update and cancellation scheduling, local login and the relay HTTP transport are unchanged.",
+        "evidence": [
+          "baseline/iOS/CodeRimMobile/MobileAppModel.swift",
+          "candidate/iOS/CodeRimMobile/MobileAppModel.swift",
+          "candidate/Rust/bridge/include/coderim_mobile.h"
+        ]
+      },
+      "performance": {
+        "winner": "B",
+        "reason": "Independent host reruns used nine rotated samples per mode with the same trace checksum. The median cost of a complete synthetic registration declined on both architectures.",
+        "evidence": [
+          "candidate/iOS/CodeRimMobile/MobileAppModel.swift",
+          "candidate/Rust/bridge/src/digest_text.rs",
+          "candidate/Scripts/rust_migration/mobile-registration/check.py"
+        ]
+      }
+    },
+    "concerns": [],
+    "syntheticOnly": true,
+    "nativeArm64": true,
+    "x86Mode": "Rosetta on Apple Silicon",
+    "checks": {
+      "registrationTraceRecordsPerImplementationPerArch": 738,
+      "registrationTraceSHA256": "658d66258e3f7fd9aaf726213d67c0d42ac1da64ce1e42f1f7cc3e717a39113d",
+      "canaryCapacityCasesPerArch": 12294,
+      "emptyNullOverflowCasesPerArch": 5,
+      "fixedDigestAliasingCasesPerArch": 256,
+      "payloadInputSizeRange": [
+        0,
+        2048
+      ],
+      "registrationNsPerOpMedians": {
+        "arm64": {
+          "release": 82354.38541666667,
+          "native": 85962.77083333333,
+          "rust": 42903.027083333334
+        },
+        "x86_64": {
+          "release": 81420.29652777778,
+          "native": 81033.19305555556,
+          "rust": 34076.447916666664
+        }
+      },
+      "rawLog": "independent-run/receipt.log",
+      "rawMeasurementFiles": [
+        "independent-run/bench-arm64.json",
+        "independent-run/bench-x86_64.json"
+      ],
+      "sourceBoundBySHA256": true
+    },
+    "limitations": [
+      "OS-issued Live Activity updates and APNs delivery are outside the synthetic check. Physical Intel/iOS device behavior was not measured.",
+      "The variable-length C encoder requires the documented disjoint valid buffers on a successful call. Invalid non-null addresses are outside its ABI contract."
+    ]
+  },
+  "gate": {
+    "run_id": "run-029db3ed041c4696834242f61fff09b5",
+    "decision": "INCONCLUSIVE",
+    "candidate_hash": "b5d84c5f8b22f3c7ef35c6c5db59bc4be57c60e8094fbdcf58b3c7320d433b66",
+    "gate_order": [
+      "SECURITY",
+      "FACTUAL",
+      "CONTENT",
+      "FUNCTIONAL",
+      "ACCESSIBILITY",
+      "RESPONSIVE",
+      "VISUAL_UX",
+      "CODE_QUALITY",
+      "PERFORMANCE"
+    ],
+    "blockers": [],
+    "missing_evidence": [
+      "baseline not passing",
+      "candidate check unavailable",
+      "independent code review missing/stale"
+    ],
+    "improved": false,
+    "regression_ready": false,
+    "dimensions": {},
+    "time": "2026-11-27T00:40:29.640100+00:00"
+  },
+  "limits": [
+    "Independent opaque synthetic byte arrays and an offline relay double. No real APNs token, push registration or physical iPhone used.",
+    "Optimized builds on Apple M5 arm64 and x86_64 through Rosetta. The timing excludes real network and OS token issuance. Fresh native Windows and Intel CI results are attached to their own revisions."
+  ]
+}
