@@ -22,7 +22,7 @@ public static partial class SessionPresentation
         {
             if (session.Provider != "codex" || session.ParentThreadId is not { } parent || !Guid.TryParseExact(parent, "D", out var parentId)
                 || ThreadKey(parent) == ThreadKey(session.CodexThreadId ?? "")) continue;
-            var usageIdentity = ClaudeJsonlParser.Hash(parent);
+            var rawParent = parent;
             parent = parentId.ToString("D");
             var thread = (session.Provider, session.RemoteHostId, parent);
             if (!threads.TryGetValue(thread, out var key))
@@ -32,11 +32,16 @@ public static partial class SessionPresentation
                 nodes[key] = new(key, session.Provider, session.Name, "idle", DateTimeOffset.MinValue) {
                     CodexThreadId = parent, RemoteHostId = session.RemoteHostId,
                     Detail = session.ParentThreadTitle ?? "Task " + parent[..8],
-                    UsageSessionId = session.RemoteHostId is null ? usageIdentity : null };
+                    UsageSessionId = session.RemoteHostId is null ? ClaudeJsonlParser.Hash(rawParent) : null };
                 threads[thread] = key; context.Add(key);
             }
             parents[session.Id] = key;
         }
+#if CODERIM_RUST_ACCOUNTING
+        // A custom collection can yield different sessions on the second enumeration.
+        // Preserve the released dictionary traversal and its errors when that introduces an unknown child.
+        if (parents.Count == 0 || parents.Keys.All(nodes.ContainsKey)) return DisplayGroups(nodes, parents, context);
+#endif
         // Remove one edge of each corrupt cycle deterministically, keeping every task visible.
         foreach (var key in parents.Keys.Order(StringComparer.Ordinal).ToArray())
         {
