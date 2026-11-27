@@ -1,0 +1,221 @@
+{
+  "platform": "macOS 26.6.2 build 25G83, Apple Silicon",
+  "release": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "previous": "8060a48cf322831f2b9a3d8ffabf9459117863a9",
+  "product": "109284e5968b766564b8b621c4a430e29bb628bc",
+  "paths": [
+    "General refresh Mode and week-start settings",
+    "Codex/Claude usage store preference notification, sleep/wake, scheduler, file watcher and force-analytics coalescing"
+  ],
+  "hostBoundary": "Swift/AppKit and Foundation retain the picker, persisted keys, two-step week-start lookup, notifications, five-second timer, FSEvents, debounce callbacks and the collection actor. Rust resolves all eight modes, due polls and queued analytics admission.",
+  "traceFixture": "Same compiled release, candidate native fallback and Rust Swift method bodies for scheduling, wake and default changes; source refresh/notification sinks isolated. Five-step queue histories and archived per-case bytes. Only synthetic preferences.",
+  "traceResults": {
+    "arm64": {
+      "execution": "native Apple Silicon",
+      "arch": "arm64",
+      "records": 3618,
+      "sha256": "b7079006d31e46693977991b890038da31669aea99c4569c263e41edc86745b0",
+      "counts": {
+        "mode": 8,
+        "week": 22,
+        "poll": 420,
+        "queue": 3125,
+        "wake": 21,
+        "change": 22
+      },
+      "defaultsLookupNs": {
+        "release": [
+          969.92792,
+          976.31709,
+          967.79708,
+          959.60209,
+          992.58208,
+          936.08542,
+          1202.02333
+        ],
+        "swift": [
+          964.47416,
+          990.74625,
+          986.45458,
+          970.7475,
+          951.43875,
+          1003.92459,
+          1025.14167
+        ],
+        "rust": [
+          956.20166,
+          960.26334,
+          955.13791,
+          944.42959,
+          997.36125,
+          937.88875,
+          977.33416
+        ]
+      },
+      "medians": {
+        "release": 969.92792,
+        "swift": 986.45458,
+        "rust": 956.20166
+      },
+      "combinedSettingsNs": {
+        "release": [
+          1510.98083,
+          1511.38959,
+          1459.90416,
+          1504.77083,
+          1508.52167,
+          1496.33584,
+          1761.81208
+        ],
+        "swift": [
+          1523.41334,
+          1618.83042,
+          1513.45292,
+          1498.39667,
+          1593.61166,
+          1605.67416,
+          1534.86542
+        ],
+        "rust": [
+          1467.46208,
+          1496.82917,
+          1457.02083,
+          1446.22583,
+          1466.63416,
+          1450.42792,
+          1556.2325
+        ]
+      },
+      "combinedMedians": {
+        "release": 1508.52167,
+        "swift": 1534.86542,
+        "rust": 1466.63416
+      },
+      "checksum": "41287500"
+    },
+    "x86_64": {
+      "execution": "Rosetta on Apple Silicon",
+      "arch": "x86_64",
+      "records": 3618,
+      "sha256": "b7079006d31e46693977991b890038da31669aea99c4569c263e41edc86745b0",
+      "counts": {
+        "mode": 8,
+        "week": 22,
+        "poll": 420,
+        "queue": 3125,
+        "wake": 21,
+        "change": 22
+      },
+      "defaultsLookupNs": {
+        "release": [
+          1285.56291,
+          1302.67834,
+          1518.50042,
+          1561.40791,
+          1510.135,
+          1346.66958,
+          1582.8125
+        ],
+        "swift": [
+          1415.04541,
+          4071.79167,
+          1326.13125,
+          1622.73583,
+          1872.045,
+          1413.095,
+          1285.46166
+        ],
+        "rust": [
+          1420.69458,
+          1265.91959,
+          1345.93875,
+          1253.70708,
+          1497.97166,
+          1355.48958,
+          1246.91583
+        ]
+      },
+      "medians": {
+        "release": 1510.135,
+        "swift": 1415.04541,
+        "rust": 1345.93875
+      },
+      "combinedSettingsNs": {
+        "release": [
+          2072.48459,
+          2152.54458,
+          2658.47583,
+          4331.90791,
+          2341.2875,
+          2276.63959,
+          2229.2625
+        ],
+        "swift": [
+          2096.96292,
+          2355.90917,
+          6377.83,
+          2427.125,
+          2452.68875,
+          2823.25875,
+          2017.31875
+        ],
+        "rust": [
+          2486.0725,
+          2015.09459,
+          2415.92583,
+          2799.89708,
+          2220.20875,
+          2130.74625,
+          2102.73125
+        ]
+      },
+      "combinedMedians": {
+        "release": 2276.63959,
+        "swift": 2427.125,
+        "rust": 2220.20875
+      },
+      "checksum": "41287500"
+    }
+  },
+  "actualStore": {
+    "method": "Compiled entire UsageStore and the versioned XCTest cases against the same SwiftPM dependency objects, using a real local SQLite collector and a private preferences suite.",
+    "arm64Tests": 8,
+    "failed": 0,
+    "weekStartRegression": {
+      "publicRelease": "passed",
+      "4c66e4a7": "fails on synthetic usage: week total 0 rather than 117",
+      "109284e5": "passes; week total refreshes from old SQLite data without new source IO, and changing refresh mode then imports the pending 556-token source"
+    },
+    "rustBridgeTests": 71,
+    "cargoFmt": "passed"
+  },
+  "independent": {
+    "packetDigest": "95108d0c8dcd1fbadd5abe1c95153b109c5545cf25ee594fbb9687d2e4f14db0",
+    "reviewSHA256": "7a9f2dbf5a36b67eb78f0aafacb17696efdc7596523cc2fda267ab1e3403fd06",
+    "actualFSEventsAndSQLiteTraces": [
+      "OBS auto 1 1 10 true false",
+      "OBS coalesced-file 3 1 40 true false",
+      "OBS manual 4 1 40 false false",
+      "OBS manual-file 4 1 40 false false",
+      "OBS poll-mode 5 1 50 false false",
+      "OBS timer 6 1 50 false false",
+      "OBS reentrant 8 1 50 false false",
+      "OBS preference-reread 1"
+    ],
+    "formalGate": "INCONCLUSIVE"
+  },
+  "limits": [
+    "The lookup medians cover native preferences and decoding on a synthetic local host. They do not measure power consumption, GUI latency, source collection throughput, or physical Intel hardware.",
+    "Local XCTest used prebuilt SwiftPM dependencies. The checked-in apple.py check connects the differential fixture to the existing native platform CI; no CI result is represented here."
+  ],
+  "receipts": {
+    "fixed-packet.json": "d4094b205611bd072bec55f7b7794c8571451c7f564f16b1d027a99178ba64ef",
+    "fixed-independent.json": "7a9f2dbf5a36b67eb78f0aafacb17696efdc7596523cc2fda267ab1e3403fd06",
+    "fixed-gate.json": "f3315e92f51631daa620e63d3fd1cb7923dad9716f27245c56ce24105647af20",
+    "fixed-policy-run.log": "68009b244e1bd5ea1e5d9e363edde756887c6968e35e253d0dcb7e30f9b4ae94",
+    "fixed-integration.log": "1af594fa8498ed25b7c989815cfa03d22af82e4a46e62bd837130af3e6c1e0f5",
+    "wrong-week-regression.log": "6a9554a8e17fad54f2a1a560dc1d6b96f5ca499ada73177177e71e138495a843",
+    "release-week-regression.log": "85914e12f3125881652761ab88354194a63ed55e6a1da2a5df1d40ed42c18264",
+    "cargo-test.log": "95835fdc17f62fcfa18af051765945d90fa9609e21843c3455fd5617b4577cfd"
+  }
+}

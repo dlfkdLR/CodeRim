@@ -1,3 +1,4 @@
+import AppKit
 import CSQLite
 import Foundation
 import XCTest
@@ -111,6 +112,111 @@ final class UsageStoreLifecycleTests: XCTestCase {
         }
     }
 
+    func testManualWakeAndChangedRefreshPreferenceSurviveReopen() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.write(output: 17)
+        fixture.store.startAutomaticRefresh()
+        defer { fixture.store.stopAutomaticRefresh() }
+        let wakeCenter = NSWorkspace.shared.notificationCenter
+        let clock = ContinuousClock()
+        let manualDeadline = clock.now + .seconds(3)
+        repeat {
+            wakeCenter.post(name: NSWorkspace.didWakeNotification, object: nil)
+            try await Task.sleep(for: .milliseconds(25))
+        } while !fixture.store.hasLoadedSnapshot && clock.now < manualDeadline
+        XCTAssertTrue(fixture.store.hasLoadedSnapshot)
+        XCTAssertNil(fixture.store.lastSourceRefreshAt)
+        XCTAssertEqual(fixture.store.snapshot.allTime.totalTokens, 0)
+
+        fixture.defaults.set(RefreshMode.oneMinute.rawValue, forKey: "refreshMode")
+        NotificationCenter.default.post(name: UserDefaults.didChangeNotification, object: fixture.defaults)
+        let changedDeadline = clock.now + .seconds(3)
+        while fixture.store.isRefreshing || fixture.store.lastSourceRefreshAt == nil {
+            if clock.now >= changedDeadline { break }
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        XCTAssertEqual(fixture.store.snapshot.allTime.totalTokens, 117)
+        fixture.store.stopAutomaticRefresh()
+
+        let reopenedDefaults = try XCTUnwrap(UserDefaults(suiteName: fixture.defaultsDomain))
+        let reopened = UsageStore(provider: .claude, automaticallyRefresh: false,
+                                  collector: fixture.collector, defaults: reopenedDefaults)
+        try fixture.write(output: 456)
+        reopened.startAutomaticRefresh()
+        defer { reopened.stopAutomaticRefresh() }
+        let reopenedDeadline = clock.now + .seconds(3)
+        repeat {
+            wakeCenter.post(name: NSWorkspace.didWakeNotification, object: nil)
+            try await Task.sleep(for: .milliseconds(25))
+        } while !reopened.isRefreshing && reopened.lastSourceRefreshAt == nil && clock.now < reopenedDeadline
+        while reopened.isRefreshing && clock.now < reopenedDeadline {
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        XCTAssertNotNil(reopened.lastSourceRefreshAt)
+        XCTAssertEqual(reopened.snapshot.allTime.totalTokens, 556)
+    }
+
+    func testWeekChangeRecalculatesPersistedUsageWithoutImportingPendingRows() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let domain = "dev.coderim.week-start-test." + UUID().uuidString
+        let defaults = try XCTUnwrap(SplitWeekDefaults(suiteName: domain))
+        defer { defaults.removePersistentDomain(forName: domain) }
+        defaults.set("manual", forKey: "refreshMode")
+        defaults.set(1, forKey: "fixtureWeekStart")
+        let store = UsageStore(provider: .claude, automaticallyRefresh: false,
+                               collector: fixture.collector, defaults: defaults)
+        store.startAutomaticRefresh()
+        defer { store.stopAutomaticRefresh() }
+
+        // On Sunday, Saturday belongs only to the Monday-based week. On other
+        // days the most recent Sunday belongs only to the Sunday-based week.
+        let calendar = Calendar.current
+        let now = Date()
+        let weekday = calendar.component(.weekday, from: now)
+        let daysAgo = weekday == 1 ? 1 : weekday - 1
+        let date = try XCTUnwrap(calendar.date(byAdding: .day, value: -daysAgo, to: now))
+        try fixture.write(output: 17, timestamp: date.formatted(.iso8601))
+        await store.refresh()
+        XCTAssertEqual(store.snapshot.allTime.totalTokens, 117)
+        XCTAssertEqual(store.snapshot.week.totalTokens, weekday == 1 ? 0 : 117)
+        let lastRead = try XCTUnwrap(store.lastSourceRefreshAt)
+
+        try fixture.write(output: 456)
+        defaults.set(2, forKey: "fixtureWeekStart")
+        NotificationCenter.default.post(name: UserDefaults.didChangeNotification, object: defaults)
+        let clock = ContinuousClock()
+        let recalcDeadline = clock.now + .seconds(3)
+        let mondayTotal: Int64 = weekday == 1 ? 117 : 0
+        while store.snapshot.week.totalTokens != mondayTotal && clock.now < recalcDeadline {
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        XCTAssertEqual(store.snapshot.week.totalTokens, mondayTotal)
+        XCTAssertEqual(store.snapshot.allTime.totalTokens, 117)
+        XCTAssertEqual(store.lastSourceRefreshAt, lastRead)
+
+        defaults.set("60", forKey: "refreshMode")
+        NotificationCenter.default.post(name: UserDefaults.didChangeNotification, object: defaults)
+        let scanDeadline = clock.now + .seconds(3)
+        while (store.snapshot.allTime.totalTokens != 556 || store.isRefreshing) && clock.now < scanDeadline {
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        XCTAssertEqual(store.snapshot.allTime.totalTokens, 556)
+        XCTAssertNotEqual(store.lastSourceRefreshAt, lastRead)
+    }
+
+    private final class SplitWeekDefaults: UserDefaults, @unchecked Sendable {
+        override func object(forKey key: String) -> Any? {
+            if key == "weekStart" { return 2 }
+            return super.object(forKey: key)
+        }
+
+        override func integer(forKey key: String) -> Int {
+            super.integer(forKey: key == "weekStart" ? "fixtureWeekStart" : key)
+        }
+    }
+
     func testConcurrentRequestsCannotRestoreClearedAnalysis() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -155,9 +261,9 @@ final class UsageStoreLifecycleTests: XCTestCase {
             timestamp = Date().formatted(.iso8601)
         }
 
-        func write(output: Int) throws {
+        func write(output: Int, timestamp: String? = nil) throws {
             let row = """
-            {"type":"assistant","timestamp":"\(timestamp)","sessionId":"test-session","message":{"id":"test-message","role":"assistant","model":"claude-sonnet-4-6","usage":{"input_tokens":100,"output_tokens":\(output)}}}
+            {"type":"assistant","timestamp":"\(timestamp ?? self.timestamp)","sessionId":"test-session","message":{"id":"test-message","role":"assistant","model":"claude-sonnet-4-6","usage":{"input_tokens":100,"output_tokens":\(output)}}}
             """
             try Data((row + "\n").utf8).write(to: source)
         }
