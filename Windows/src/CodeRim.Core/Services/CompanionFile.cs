@@ -31,6 +31,39 @@ public static class CompanionFile
     private const int MaximumBytes = 8 * 1024 * 1024;
     public static JsonSerializerOptions JsonOptions { get; } = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true, Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) } };
+
+    public static JsonSerializerOptions ExportJsonOptions { get; } = ExportOptions(compact: false);
+    private static JsonSerializerOptions SnapshotWriteOptions { get; } = ExportOptions(compact: true);
+
+    private static JsonSerializerOptions ExportOptions(bool compact) => new(JsonOptions) {
+        Converters = { new RoundTripDoubleConverter(compact) }
+    };
+
+    private sealed class RoundTripDoubleConverter(bool compact) : JsonConverter<double>
+    {
+        public override double Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => reader.GetDouble();
+
+        public override void Write(Utf8JsonWriter writer, double value, JsonSerializerOptions options)
+        {
+            // .NET 10's default JSON spellings for ±2^-25 and ±2^-958 read back
+            // as the adjacent double nearer zero. Preserve the input bits on export.
+            var magnitude = BitConverter.DoubleToUInt64Bits(Math.Abs(value));
+            var text = magnitude switch
+            {
+                0x3e60_0000_0000_0000 => compact ? "29802322387695312E-24" : "2.9802322387695312E-08",
+                0x0410_0000_0000_0000 => compact ? "41045368012983762E-305" : "4.1045368012983762E-289",
+                _ => null
+            };
+            // Integral coefficients keep snapshot bytes the same length as the
+            // release spelling, including at the 8 MiB atomic-write limit.
+            if (text is null)
+                writer.WriteNumberValue(value);
+            else
+                writer.WriteRawValue(value < 0 ? "-" + text : text);
+        }
+    }
+
     public static string DataDirectory => Environment.GetEnvironmentVariable("CODERIM_DATA_DIR")
         ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CodeRim");
     public static string SnapshotPath => Path.Combine(DataDirectory, "snapshot.json");
@@ -107,7 +140,7 @@ public static class CompanionFile
     public static void Write(CompanionSnapshot snapshot, string? path = null)
     {
         Validate(snapshot);
-        var payload = JsonSerializer.SerializeToUtf8Bytes(snapshot, JsonOptions);
+        var payload = JsonSerializer.SerializeToUtf8Bytes(snapshot, SnapshotWriteOptions);
         if (payload.Length > MaximumBytes) throw new InvalidDataException("Snapshot is too large.");
         path ??= SnapshotPath;
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
