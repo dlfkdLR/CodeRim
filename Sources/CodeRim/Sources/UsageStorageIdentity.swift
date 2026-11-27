@@ -13,6 +13,35 @@ enum UsageStorageIdentity {
         return digest(identifier)
     }
 
+    static func claudeMessage(_ messageID: String) -> String {
+        #if CODERIM_RUST_ACCOUNTING
+        var id = messageID
+        let encoded = id.withUTF8 { string(cr_claude_message_identity($0.baseAddress, $0.count)) }
+        if let encoded { return encoded }
+        #endif
+        return digest("claude-message|\(messageID)")
+    }
+
+    static func claudeLineage(_ sessionID: String, agentID: String?) -> (session: String, parent: String?) {
+        #if CODERIM_RUST_ACCOUNTING
+        var id = sessionID
+        var agent = agentID ?? ""
+        let encoded = id.withUTF8 { session in
+            agent.withUTF8 { suffix in
+                cr_claude_lineage_identity(session.baseAddress, session.count, suffix.baseAddress,
+                                          suffix.count, agentID != nil)
+            }
+        }
+        if let session = string(encoded.session) {
+            if agentID == nil { return (session, nil) }
+            if let parent = string(encoded.parent) { return (session, parent) }
+        }
+        #endif
+        let parent = digest("claude-session|\(sessionID)")
+        guard let agentID else { return (parent, nil) }
+        return (digest("claude-agent|\(sessionID)|\(agentID)"), parent)
+    }
+
     static func digest(_ value: String) -> String {
         digest(Data(value.utf8))
     }

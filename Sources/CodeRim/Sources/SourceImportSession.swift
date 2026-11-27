@@ -23,6 +23,12 @@ struct SourceImportSession: Sendable {
     private let parser = CodexJSONLParser()
     private let normalizer = UsageNormalizer()
 
+    private var previousClaudeSession: (rawID: String, rawAgent: String?, session: String, parent: String?)?
+    private lazy var claudeFileAgent: String? = {
+        let name = sourceURL.deletingPathExtension().lastPathComponent
+        return name.hasPrefix("agent-") ? name : nil
+    }()
+
     init(checkpoint: SourceCheckpoint, state: UsageNormalizationState, provider: UsageProvider,
          sourceURL: URL, importCutoff: Date?, projectKey: Data,
          loadState: @escaping @Sendable (String) async throws -> UsageNormalizationState) {
@@ -230,22 +236,15 @@ struct SourceImportSession: Sendable {
             }
             return
         }
-        let eventKey = UsageStorageIdentity.digest("claude-message|\(observation.messageID)")
+        let eventKey = UsageStorageIdentity.claudeMessage(observation.messageID)
         if let importCutoff, observation.occurredAt <= importCutoff {
             excludedEventKeys.insert(eventKey)
             return
         }
-        let parentID = UsageStorageIdentity.digest("claude-session|\(observation.sessionID)")
-        // Subagent transcripts share the parent sessionId but own their messages.
-        let filename = sourceURL.deletingPathExtension().lastPathComponent
-        let agentID = observation.agentID.map { $0.hasPrefix("agent-") ? $0 : "agent-\($0)" }
-            ?? (filename.hasPrefix("agent-") ? filename : nil)
-        let sessionID = agentID.map {
-            UsageStorageIdentity.digest("claude-agent|\(observation.sessionID)|\($0)")
-        } ?? parentID
+        let lineage = claudeLineage(sessionID: observation.sessionID, agentID: observation.agentID)
         let project = UsageStorageIdentity.project(observation.workingDirectory, keyData: projectKey)
-        checkpoint.sessionID = sessionID
-        checkpoint.parentSessionID = agentID == nil ? nil : parentID
+        checkpoint.sessionID = lineage.session
+        checkpoint.parentSessionID = lineage.parent
         checkpoint.sessionStartedAt = min(checkpoint.sessionStartedAt ?? observation.occurredAt,
                                           observation.occurredAt)
         checkpoint.model = observation.model
@@ -256,14 +255,25 @@ struct SourceImportSession: Sendable {
             // Its message ID, not a line UUID, file path or timestamp, is the identity.
             eventKey: eventKey,
             occurredAt: observation.occurredAt,
-            sessionID: sessionID,
+            sessionID: lineage.session,
             model: observation.model,
             projectPath: checkpoint.projectPath,
             usage: observation.usage,
             sourcePath: storedSourcePath,
             sourcePosition: position,
-            importParentSessionID: agentID == nil ? nil : parentID
+            importParentSessionID: lineage.parent
         ))
+    }
+
+    private mutating func claudeLineage(sessionID: String, agentID: String?) -> (session: String, parent: String?) {
+        // The decoder validates both raw IDs as ASCII. A nil agent always uses this source's fixed filename.
+        if let cached = previousClaudeSession, cached.rawID == sessionID, cached.rawAgent == agentID {
+            return (cached.session, cached.parent)
+        }
+        let agent = agentID.map { $0.hasPrefix("agent-") ? $0 : "agent-\($0)" } ?? claudeFileAgent
+        let result = UsageStorageIdentity.claudeLineage(sessionID, agentID: agent)
+        previousClaudeSession = (sessionID, agentID, result.session, result.parent)
+        return result
     }
 
     private func usageIdentity(_ usage: TokenUsage?) -> String {

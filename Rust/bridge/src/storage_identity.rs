@@ -32,6 +32,81 @@ pub unsafe extern "C" fn cr_digest_hex(digest: *const u8, length: usize) -> Dige
     hex(unsafe { &*digest.cast::<[u8; 32]>() })
 }
 
+// The importer admits message and session IDs of at most 128 bytes. A filename
+// supplies a possible agent ID. Unusually long inputs use the original host formatter.
+const CLAUDE_MATERIAL_LIMIT: usize = 512;
+
+unsafe fn identity_bytes<'a>(ptr: *const u8, length: usize) -> Option<&'a [u8]> {
+    if length == 0 {
+        return Some(&[]);
+    }
+    if length > CLAUDE_MATERIAL_LIMIT || ptr.is_null() {
+        return None;
+    }
+    Some(unsafe { slice::from_raw_parts(ptr, length) })
+}
+
+fn claude_digest(prefix: &[u8], id: &[u8], agent: Option<&[u8]>) -> DigestText {
+    let end = prefix.len() + id.len();
+    let length = end + agent.map_or(0, |suffix| 1 + suffix.len());
+    if length > CLAUDE_MATERIAL_LIMIT {
+        return INVALID;
+    }
+    let mut material = [0; CLAUDE_MATERIAL_LIMIT];
+    material[..prefix.len()].copy_from_slice(prefix);
+    material[prefix.len()..end].copy_from_slice(id);
+    if let Some(agent) = agent {
+        material[end] = b'|';
+        material[end + 1..length].copy_from_slice(agent);
+    }
+    sha256_hex(&material[..length]).map_or(INVALID, |ascii| DigestText { ascii, valid: 1 })
+}
+
+/// # Safety
+/// A nonempty ID must remain readable for the call. The lowercase digest is returned by value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cr_claude_message_identity(id: *const u8, length: usize) -> DigestText {
+    let Some(id) = (unsafe { identity_bytes(id, length) }) else {
+        return INVALID;
+    };
+    claude_digest(b"claude-message|", id, None)
+}
+
+#[repr(C)]
+pub struct ClaudeLineage {
+    session: DigestText,
+    parent: DigestText,
+}
+
+/// # Safety
+/// Both nonempty buffers must remain readable until return. has_agent distinguishes absent and empty values.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cr_claude_lineage_identity(
+    id: *const u8,
+    length: usize,
+    agent: *const u8,
+    agent_length: usize,
+    has_agent: bool,
+) -> ClaudeLineage {
+    let (Some(id), Some(agent)) = (unsafe { identity_bytes(id, length) }, unsafe {
+        identity_bytes(agent, agent_length)
+    }) else {
+        return ClaudeLineage {
+            session: INVALID,
+            parent: INVALID,
+        };
+    };
+    let parent = claude_digest(b"claude-session|", id, None);
+    if !has_agent {
+        return ClaudeLineage {
+            session: parent,
+            parent: INVALID,
+        };
+    }
+    let session = claude_digest(b"claude-agent|", id, Some(agent));
+    ClaudeLineage { session, parent }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Usage {
