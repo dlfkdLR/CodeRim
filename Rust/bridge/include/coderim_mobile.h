@@ -18,6 +18,9 @@ extern "C" {
 #endif
 /* Reads 32 digest bytes and writes 64 lowercase ASCII bytes on success. */
 bool cr_mobile_digest_hex(const uint8_t *digest, size_t length, uint8_t *output, size_t capacity);
+/* Writes two lowercase ASCII digits per byte to disjoint caller storage.
+   Empty input succeeds. Invalid length, missing storage or insufficient capacity writes nothing. */
+bool cr_mobile_push_token_hex(const uint8_t *input, size_t length, uint8_t *output, size_t capacity);
 /* The input holds ephemeral equality keys for available IDs followed by saved IDs.
    Missing returns indices into the combined list. Enable/disable return indices
    into the same list, with key_count denoting the requested new ID. Zero indices

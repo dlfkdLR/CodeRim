@@ -164,9 +164,25 @@ final class MobileAppModel: ObservableObject {
             },
         ]
     }
+    private static func pushTokenText(_ token: Data) -> String {
+        #if CODERIM_RUST_MOBILE_DIGEST
+        guard !token.isEmpty else { return "" }
+        let (length, overflow) = token.count.multipliedReportingOverflow(by: 2)
+        if !overflow {
+            let hex = token.withUnsafeBytes { (bytes: UnsafeRawBufferPointer) in
+                String(unsafeUninitializedCapacity: length) { output in
+                    cr_mobile_push_token_hex(bytes.bindMemory(to: UInt8.self).baseAddress, bytes.count,
+                                             output.baseAddress, output.count) ? length : 0
+                }
+            }
+            if !hex.isEmpty { return hex }
+        }
+        #endif
+        return token.map { String(format: "%02x", $0) }.joined()
+    }
     private func registerStarter(_ token: Data, generation: UUID) async {
         guard loginGeneration == generation, let credential, let client else { return }
-        let hex = token.map { String(format: "%02x", $0) }.joined()
+        let hex = Self.pushTokenText(token)
         #if CODERIM_RUST_MOBILE_SELECTION
         await MobilePushRegistration.run(activity: false, sameLogin: { self.loginGeneration == generation }) {
             let _: MobileOK = try await client.send("POST", "/v1/push-to-start", token: credential.token,
@@ -483,7 +499,7 @@ final class MobileAppModel: ObservableObject {
         guard let credential, let client else { return }
         registrations[activity.id]?.cancel()
         let generation = loginGeneration
-        let hex = token.map { String(format: "%02x", $0) }.joined()
+        let hex = Self.pushTokenText(token)
         registrations[activity.id] = Task { [weak self] in
             #if CODERIM_RUST_MOBILE_SELECTION
             await MobilePushRegistration.run(activity: true,
