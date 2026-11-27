@@ -173,6 +173,31 @@ func codexRecordEdges() {
   }
 }
 
+func claudeToolBlocks() {
+  let read = #"{"type":"tool_use","name":"Read","id":"same"}"#
+  let skill = #"{"type":"tool_use","name":"Skill","input":{"skill":"analysis"}}"#
+  let escaped = #"{"type":"tool_use","name":"S\u006bill","id":"e\u0301","input":{"skill":"a\\b"}}"#
+  let duplicateKeys = #"{"type":"tool_use","name":"Read","name":"Skill","input":{"skill":"last"}}"#
+  let blocks = [
+    read, skill, escaped, duplicateKeys, #"{"type":"tool_use","name":""}"#,
+    #"{"type":"tool_use","name":"Skill","id":"é","input":{"skill":false}}"#,
+    #"{"type":"tool_use","name":"모형","id":"","input":[]}"#, #"{"type":"text","text":"ignored"}"#,
+    "null", "3", "[]",
+  ]
+  let message = Data(#"{"type":"user","timestamp":"2026-11-01T00:30:00Z","message":{"content":"sample"}}"#.utf8)
+  for (i, first) in blocks.enumerated() {
+    for (j, second) in blocks.enumerated() {
+      var lines = [message]
+      for sidechain in [true, false] {
+        let json = #"{"type":"assistant","timestamp":"2026-11-02T03:14:00Z","isSidechain":\#(sidechain),"message":{"id":"msg_q","model":"sample","content":[\#(first),\#(second),\#(read),\#(skill)]}}"#
+        let padded = Data([0, 1]) + Data(json.utf8)
+        lines.append(padded.dropFirst(2))
+      }
+      print("claudeToolBlocks", i, j, observe("claude", lines))
+    }
+  }
+}
+
 if CommandLine.arguments.contains("--bench") {
   for provider in ["codex", "claude"] {
     for count in [60, 1440, 10080] {
@@ -188,6 +213,7 @@ if CommandLine.arguments.contains("--bench") {
   edgeCases()
   dates()
   codexRecordEdges()
+  claudeToolBlocks()
   for provider in ["codex", "claude"] {
     print(provider, observe(provider, records(provider, 10080)))
   }
