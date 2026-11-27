@@ -28,7 +28,16 @@ final class MobileAppModel: ObservableObject {
     /// The notice the last failed refresh put up, so a later good refresh can take down that one and
     /// leave any other action's error alone.
     private var refreshError: String?
-    private var credential: MobileCredential?
+    private var credential: MobileCredential? {
+        didSet { cachedActivityConnectionID = nil }
+    }
+    private var cachedActivityConnectionID: String?
+    private var activityConnectionID: String? {
+        if cachedActivityConnectionID == nil {
+            cachedActivityConnectionID = credential.map { MobileActivityConnection.id(for: $0.token) }
+        }
+        return cachedActivityConnectionID
+    }
     private var client: (any MobileRelayServing)?
     private var loginGeneration = UUID()
     private var observers: [String: Task<Void, Never>] = [:]
@@ -157,7 +166,7 @@ final class MobileAppModel: ObservableObject {
             Task { [weak self] in
                 for await activity in Activity<CodeRimActivityAttributes>.activityUpdates {
                     guard !Task.isCancelled, let self, self.loginGeneration == generation,
-                          activity.attributes.connectionID == self.credential.map({ MobileActivityConnection.id(for: $0.token) })
+                          activity.attributes.connectionID == self.activityConnectionID
                     else { continue }
                     self.observe(activity)
                 }
@@ -438,10 +447,10 @@ final class MobileAppModel: ObservableObject {
         }
         do {
             try await resumeActivityUpdates(userInitiated: userInitiated)
-            if let existing = Activity<CodeRimActivityAttributes>.activities.first(where: { $0.attributes.connectionID == credential.map { MobileActivityConnection.id(for: $0.token) } && ($0.activityState == .active || $0.activityState == .stale) }) {
+            if let existing = Activity<CodeRimActivityAttributes>.activities.first(where: { $0.attributes.connectionID == activityConnectionID && ($0.activityState == .active || $0.activityState == .stale) }) {
                 observe(existing); return
             }
-            let attributes = CodeRimActivityAttributes(connectionID: credential.map { MobileActivityConnection.id(for: $0.token) } ?? "")
+            let attributes = CodeRimActivityAttributes(connectionID: activityConnectionID ?? "")
             let content = ActivityContent(state: state, staleDate: Date(timeIntervalSince1970: state.staleAt))
             let activity: Activity<CodeRimActivityAttributes>
             do {
@@ -459,7 +468,7 @@ final class MobileAppModel: ObservableObject {
     }
 
     private func observeActivities() {
-        let activities = Activity<CodeRimActivityAttributes>.activities.filter { $0.attributes.connectionID == credential.map { MobileActivityConnection.id(for: $0.token) } && ($0.activityState == .active || $0.activityState == .stale) }
+        let activities = Activity<CodeRimActivityAttributes>.activities.filter { $0.attributes.connectionID == activityConnectionID && ($0.activityState == .active || $0.activityState == .stale) }
         activityActive = !activities.isEmpty
         if activities.isEmpty { activityStatus = "Appears while a task is running" }
         for activity in activities { observe(activity) }
