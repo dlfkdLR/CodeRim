@@ -251,5 +251,118 @@
     "comparison.json": "29d022198e2207fba01e2441357c6992673d451436a41c3ae4e2192d653a8e9d",
     "released-journey.json": "97c18ea3d59ddf9a8306a649ca065298b5398ca46c35dfb5757fe76c60cd4ce7",
     "candidate-journey.json": "97c18ea3d59ddf9a8306a649ca065298b5398ca46c35dfb5757fe76c60cd4ce7"
+  },
+  "independentRepeat": {
+    "driverSha256": "8b214a8781c82061da6e4dc05bd69f562032ba68712ca19714b43409279520e0",
+    "published": {
+      "binarySha256": "786f74db0d5075b959776ea50937622a038f9d42c240484aeececc208f665cff",
+      "states": 14,
+      "nodes": 805,
+      "coldValues": {
+        "mobileDeviceName": "QA Studio",
+        "showCachedInput": "0",
+        "showLastUpdated": "1",
+        "numberStyle": "compact",
+        "weekStart": "2"
+      },
+      "newProcess": true
+    },
+    "candidate": {
+      "binarySha256": "5808c93169baaa5d1079035c24f226d36ab3bdd0494d987c2b7f8c535a379e28",
+      "states": 14,
+      "nodes": 805,
+      "coldValues": {
+        "mobileDeviceName": "QA Studio",
+        "showCachedInput": "0",
+        "showLastUpdated": "1",
+        "numberStyle": "compact",
+        "weekStart": "2"
+      },
+      "newProcess": true
+    },
+    "steps": [
+      [
+        "seed-usage",
+        55,
+        "a9cf7af3ba264005b3fcfbb7e09396a6e01cc36f4d4f527836f510fb33681869"
+      ],
+      [
+        "seed-general",
+        64,
+        "48212f53b9592c9ef26ef94a952329e1c72d8f650ee219ef8724fd6d98e7bb3e"
+      ],
+      [
+        "seed-device-field",
+        64,
+        "9c9ba81cf5ec53f48fa8a815548c56d3b2770eb24f3690fb49931fd3368f1f43"
+      ],
+      [
+        "renamed",
+        64,
+        "9c9ba81cf5ec53f48fa8a815548c56d3b2770eb24f3690fb49931fd3368f1f43"
+      ],
+      [
+        "both-off",
+        64,
+        "509a17496aaf4d36281ae987945624e0da395d9aafc5371efe838c190b5a0d4a"
+      ],
+      [
+        "last-updated-restored",
+        64,
+        "57fccb6b324849490a280f6c20468584451c4c99c3ae1f3f960324df0149cae2"
+      ],
+      [
+        "returned-to-usage",
+        55,
+        "a9cf7af3ba264005b3fcfbb7e09396a6e01cc36f4d4f527836f510fb33681869"
+      ],
+      [
+        "general-again",
+        64,
+        "9c755ff4affe08cb909a6bd0d281e9fab1da341b89d44c3c4371496589a80024"
+      ],
+      [
+        "window-closed",
+        0,
+        "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      ],
+      [
+        "window-reopened",
+        64,
+        "57fccb6b324849490a280f6c20468584451c4c99c3ae1f3f960324df0149cae2"
+      ],
+      [
+        "cold-usage",
+        55,
+        "a9cf7af3ba264005b3fcfbb7e09396a6e01cc36f4d4f527836f510fb33681869"
+      ],
+      [
+        "cold-general",
+        64,
+        "9c755ff4affe08cb909a6bd0d281e9fab1da341b89d44c3c4371496589a80024"
+      ],
+      [
+        "cold-device-field",
+        64,
+        "57fccb6b324849490a280f6c20468584451c4c99c3ae1f3f960324df0149cae2"
+      ],
+      [
+        "cold-restored",
+        64,
+        "57fccb6b324849490a280f6c20468584451c4c99c3ae1f3f960324df0149cae2"
+      ]
+    ],
+    "attempts": [
+      "Initial reference repeat began while the macOS console was locked. The NSWindow opened, but its AX tree was unavailable.",
+      "After unlock, the reference passed and the first candidate preserved the edited name through reopen; 282ms later the fixture observed an empty name in its defaults and editor, and cold restore failed. The immediate cause of that write has not been isolated.",
+      "A second independent run, candidate first, completed all steps for both binaries. Six additional observations after reopening showed the entered name preserved for both."
+    ],
+    "earlierFailureEvidence": {
+      "root-independent-retry-candidate.json": "df015d9ac4e5f59aa014b4b9498b86f61bbac0a4a9867b1b71b6f3961848d92b",
+      "root-independent-retry-candidate-seed/state-16.json": "c29224efb3870d1e28062ba84f91fe77c30ea5ce4468b536228f05100bc79cd8",
+      "root-independent-retry-candidate-seed/end.json": "0129d87f1ea9b695e2820edecc50c052714e48f7003faad35e1885a697606e7f",
+      "root-independent-retry-candidate-cold/ready.json": "1cb5c2a91ffc722171d48674eff7f844752df82dc150f3fcdf32b64df7f22561",
+      "root-independent-retry-candidate-cold/end.json": "9a833f65ef685865e775d3e3403bbe3fba1c051a025695938048a1e531e89096"
+    }
   }
 }
