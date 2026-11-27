@@ -81,26 +81,36 @@ public static class ReleaseUpdates
         ref AvailableUpdate? selected, CancellationToken token)
     {
 #if CODERIM_RUST_ACCOUNTING
-        // A small fixed-size managed array keeps the default WPF JIT on its quick first-call tier.
-        // The earlier stack allocation forced an optimized compilation of the entire page reader.
-        var rows = new RustReleasePage.Row[ReleasePageSize];
-        var count = RustReleasePage.Project(bytes, architecture, preferInstaller, rows);
-        if (count >= 0)
+        // A startup update can finish before the WPF usage or session tree has loaded accounting.
+        // Keep that cold request from incurring the library load on the update path.
+        if (CodeRim.Core.Domain.RustAccountingLoadState.IsLoaded)
         {
-            token.ThrowIfCancellationRequested();
-            for (var i = 0; i < count; i++)
-            {
-                token.ThrowIfCancellationRequested();
-                ref readonly var row = ref rows[i];
-                if (row.UrlStart != 0) Consider(ProjectedUpdate(bytes, architecture, in row), versions, ref selected);
-            }
-            return count;
+            var count = ReadProjectedPage(bytes, architecture, preferInstaller, versions, ref selected, token);
+            if (count >= 0) return count;
         }
 #endif
         return ReadManagedPage(bytes, architecture, preferInstaller, versions, ref selected, token);
     }
 
 #if CODERIM_RUST_ACCOUNTING
+    private static int ReadProjectedPage(byte[] bytes, string architecture, bool preferInstaller, HashSet<Version> versions,
+        ref AvailableUpdate? selected, CancellationToken token)
+    {
+        // A small fixed-size managed array keeps the default WPF JIT on its quick first-call tier.
+        // The earlier stack allocation forced an optimized compilation of the entire page reader.
+        var rows = new RustReleasePage.Row[ReleasePageSize];
+        var count = RustReleasePage.Project(bytes, architecture, preferInstaller, rows);
+        if (count < 0) return count;
+        token.ThrowIfCancellationRequested();
+        for (var i = 0; i < count; i++)
+        {
+            token.ThrowIfCancellationRequested();
+            ref readonly var row = ref rows[i];
+            if (row.UrlStart != 0) Consider(ProjectedUpdate(bytes, architecture, in row), versions, ref selected);
+        }
+        return count;
+    }
+
     private static AvailableUpdate ProjectedUpdate(byte[] bytes, string architecture, in RustReleasePage.Row row)
     {
         var version = new Version(row.Major, row.Minor, row.Build);
@@ -118,10 +128,7 @@ public static class ReleaseUpdates
     private static int ReadManagedPage(byte[] bytes, string architecture, bool preferInstaller, HashSet<Version> versions,
         ref AvailableUpdate? selected, CancellationToken token)
     {
-        string json;
-        try { json = new UTF8Encoding(false, true).GetString(bytes); }
-        catch (DecoderFallbackException error) { throw new InvalidDataException("Release metadata is not valid UTF-8.", error); }
-        using var document = JsonDocument.Parse(json);
+        using var document = OpenMetadata(bytes);
         token.ThrowIfCancellationRequested();
         var releases = document.RootElement;
         if (releases.ValueKind != JsonValueKind.Array || releases.GetArrayLength() > ReleasePageSize)
@@ -141,6 +148,14 @@ public static class ReleaseUpdates
         }
         token.ThrowIfCancellationRequested();
         return releases.GetArrayLength();
+    }
+
+    private static JsonDocument OpenMetadata(byte[] bytes)
+    {
+        // JsonDocument may defer decoding unused values. Validate the complete original payload.
+        if (System.Text.Unicode.Utf8.IsValid(bytes)) return JsonDocument.Parse(bytes.AsMemory());
+        try { return JsonDocument.Parse(new UTF8Encoding(false, true).GetString(bytes)); }
+        catch (DecoderFallbackException error) { throw new InvalidDataException("Release metadata is not valid UTF-8.", error); }
     }
 
     private static void Consider(AvailableUpdate update, HashSet<Version> versions, ref AvailableUpdate? selected)
