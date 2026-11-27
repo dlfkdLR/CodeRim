@@ -16,6 +16,7 @@ mod apple_sqlite;
 mod auggie_quota;
 #[cfg(any(target_os = "macos", test))]
 mod card_layout;
+#[cfg(target_os = "macos")]
 mod claude_activity_tools;
 mod claude_json;
 #[cfg(target_os = "macos")]
