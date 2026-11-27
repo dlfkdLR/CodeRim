@@ -1,0 +1,477 @@
+{
+  "scope": "CodeRim-owned companion snapshots on the Windows CLI. Validate display metadata for active, cached or disabled readings and omit it from the CLI output. Unknown and noncanonical values still use the original typed reader.",
+  "source": {
+    "reference": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+    "product": "3eb0f66b9f16e4886d15c090c78a953a2136d4a5",
+    "qa": "045d7d1c11a98db8a5bd8d1c275c38af240b33af",
+    "workerProduct": "1376754a1bb3db4e99dc5332c6d1fe3c02603d9c",
+    "workerQa": "19109392fe89d4060207aad1132d5192faad8c91"
+  },
+  "local": {
+    "platform": "Apple Silicon macOS, Release, .NET 10",
+    "publicComparisons": 96,
+    "privateMarkersRendered": 0,
+    "fixtureGroups": 16,
+    "renderingsPerGroup": 6,
+    "samples": {
+      "omitted label": {
+        "wallMs": {
+          "release": [
+            119.63487,
+            128.58979,
+            123.14708,
+            114.087,
+            120.42321,
+            126.32854,
+            109.479,
+            104.71513,
+            102.24958,
+            103.70817,
+            110.02329
+          ],
+          "previous": [
+            141.09058,
+            130.6225,
+            111.22237,
+            109.05588,
+            118.34842,
+            128.79671,
+            114.45321,
+            108.90063,
+            106.89487,
+            166.41558,
+            147.36308
+          ],
+          "candidate": [
+            6.17129,
+            4.79604,
+            4.85163,
+            4.23796,
+            4.68092,
+            4.84271,
+            4.23313,
+            4.51054,
+            4.41796,
+            4.68912,
+            4.42642
+          ]
+        },
+        "medianMs": {
+          "release": 114.087,
+          "previous": 118.34842,
+          "candidate": 4.68092
+        }
+      },
+      "display": {
+        "wallMs": {
+          "release": [
+            102.67942,
+            102.20904,
+            102.66217,
+            111.21633,
+            111.88683,
+            118.49417,
+            129.65979,
+            104.16179,
+            135.52742,
+            136.80958,
+            138.83379
+          ],
+          "previous": [
+            106.22346,
+            107.103,
+            107.80183,
+            119.83183,
+            109.274,
+            157.54513,
+            111.63675,
+            108.17817,
+            143.88608,
+            141.19408,
+            142.57983
+          ],
+          "candidate": [
+            4.54025,
+            4.32729,
+            4.50917,
+            4.75083,
+            4.71217,
+            4.79542,
+            4.52929,
+            4.22621,
+            4.51008,
+            4.52337,
+            5.40246
+          ]
+        },
+        "medianMs": {
+          "release": 111.88683,
+          "previous": 111.63675,
+          "candidate": 4.52929
+        }
+      },
+      "CJK boundary": {
+        "wallMs": {
+          "release": [
+            113.60558,
+            124.43175,
+            126.60438,
+            126.24412,
+            141.45096,
+            132.31979,
+            121.45854,
+            133.17663,
+            124.50875,
+            133.4145,
+            125.26554
+          ],
+          "previous": [
+            126.90479,
+            132.98254,
+            123.60567,
+            128.04933,
+            131.94979,
+            128.55113,
+            126.039,
+            141.60183,
+            130.20354,
+            152.03029,
+            133.22517
+          ],
+          "candidate": [
+            4.87183,
+            4.42675,
+            4.88283,
+            4.71938,
+            4.72829,
+            4.91858,
+            4.83425,
+            4.64112,
+            5.34496,
+            5.23304,
+            5.01663
+          ]
+        },
+        "medianMs": {
+          "release": 126.24412,
+          "previous": 130.20354,
+          "candidate": 4.87183
+        }
+      }
+    },
+    "binarySha256": {
+      "release": "3431eca53719e077784f6aa71d2c7fbaff5d5a6dc9cce3dc70b5e2b054159455",
+      "previous": "6a9c73aa81c7b05e3a661ce964301661c1f53602d6db1529cdcf8cc991e9b791",
+      "standalone": "e182b1e0577c9a2af43583964f7ac0cdc5b72569475d2244c30e872ac9cf4165",
+      "candidate": "e182b1e0577c9a2af43583964f7ac0cdc5b72569475d2244c30e872ac9cf4165"
+    },
+    "suite": {
+      "hostlessComparisons": 64,
+      "completeComparisons": 96,
+      "watch": {
+        "legacy": {
+          "frames": "8c14875895aeb0607dcd25b2b323eab2f6100a9d2504704633faba5c92cefcff",
+          "interruptExit": 0
+        },
+        "rust": {
+          "frames": "8c14875895aeb0607dcd25b2b323eab2f6100a9d2504704633faba5c92cefcff",
+          "interruptExit": 0
+        }
+      }
+    }
+  },
+  "independent": {
+    "run_id": "run-e4f583f49b6f40baa2469856782c37a0",
+    "packet_digest": "8be6f975edc324e3509eaac2817621bf30ee90e2aadcea901e3a7015168eecdc",
+    "packet_file_sha256": "f6492229cf4703770bce1c4d0e2d6ca0fdb6629ec5323b64ee6c27dd8c8776c8",
+    "product": "1376754a1bb3db4e99dc5332c6d1fe3c02603d9c",
+    "qa": "19109392fe89d4060207aad1132d5192faad8c91",
+    "dimensions": {
+      "functionality": {
+        "winner": "A",
+        "reason": "Candidate and previous CLI with compatibility host both equal the public managed CLI (exit status and raw stdout/stderr in all 83 distinct snapshots). Canonical non-null metadata now also works directly in the Rust CLI with no managed host.",
+        "evidence": [
+          "candidate/Rust/windows-cli/src/projection.rs",
+          "baseline/Rust/windows-cli/src/projection.rs"
+        ]
+      },
+      "facts": {
+        "winner": "TIE",
+        "reason": "Actual byte output, filtered and unfiltered provider selection, six command/format combinations and four periods agree. Unsupported and invalid shape behavior matches the published reader with its host present.",
+        "evidence": [
+          "candidate/Rust/windows-cli/src/projection.rs",
+          "baseline/Rust/windows-cli/src/projection.rs"
+        ]
+      },
+      "security": {
+        "winner": "TIE",
+        "reason": "Neither current nor cached reading account metadata reaches public output or diagnostics. Synthetic marker and control inputs were checked on all paths, including an account on a different provider than the selected one. The change only validates in-memory JSON and does not access any credentials or account stores.",
+        "evidence": [
+          "candidate/Rust/windows-cli/src/projection.rs",
+          "baseline/Rust/windows-cli/src/projection.rs"
+        ]
+      },
+      "maintainability": {
+        "winner": "B",
+        "reason": "B delegates all non-null display metadata to the existing .NET validator. A saves host startup by duplicating part of the exact contract (region allow list, Unicode whitespace/control behavior, UTF-8 byte count); future changes must keep both synchronized.",
+        "evidence": [
+          "candidate/Rust/windows-cli/src/projection.rs",
+          "baseline/Rust/windows-cli/src/projection.rs"
+        ]
+      },
+      "scope": {
+        "winner": "TIE",
+        "reason": "Source-addressed patch changes the reading projection only. The read, emit, host resolution and command option code remains shared with the previous commit.",
+        "evidence": [
+          "candidate/Rust/windows-cli/src/projection.rs",
+          "baseline/Rust/windows-cli/src/projection.rs"
+        ]
+      },
+      "performance": {
+        "winner": "A",
+        "reason": "For accepted non-null display metadata, seven fresh interleaved processes per side gave median 55.94 ms previous vs 2.71 ms candidate with its host available. An upper-case legacy key still needs the host (59.59/59.47 ms), and invalid oversized input was 56.01/57.83 ms; no uniform speedup is inferred for fallback.",
+        "evidence": [
+          "candidate/Rust/windows-cli/src/projection.rs",
+          "baseline/Rust/windows-cli/src/projection.rs"
+        ]
+      }
+    },
+    "cases": 83,
+    "conditions": {
+      "public0-direct": 33,
+      "public1-fallback": 45,
+      "public0-fallback": 5
+    },
+    "source": "Real Windows writer synthetic snapshot, varied limits/cachedLimits across three provider positions. Prior and candidate existing Rust binaries compared to a released .NET CLI and to standalone candidate without the fixed sibling host. Upper/lower/escaped member names, duplicates, unknown fields, invalid shapes, unpaired surrogate, 256-byte vs 257-byte fields, twenty Unicode/control scalars in front/middle/end, case-sensitive region. Captured complete raw stream pairs.",
+    "timings": {
+      "no-member": {
+        "samplesMs": {
+          "public": [
+            60.1795,
+            56.129459,
+            57.362208,
+            61.214875,
+            58.318625,
+            58.792916,
+            57.623583
+          ],
+          "previous": [
+            2.461,
+            2.905375,
+            3.017917,
+            3.002958,
+            2.137125,
+            3.053291,
+            2.913625
+          ],
+          "candidate": [
+            2.306625,
+            2.326041,
+            2.463208,
+            2.562875,
+            2.231334,
+            2.571125,
+            2.629875
+          ],
+          "standalone": [
+            2.691375,
+            2.418208,
+            3.129125,
+            2.439875,
+            2.400458,
+            2.508042,
+            2.879541
+          ]
+        },
+        "medianMs": {
+          "public": 58.318625,
+          "previous": 2.913625,
+          "candidate": 2.463208,
+          "standalone": 2.508042
+        }
+      },
+      "upper": {
+        "samplesMs": {
+          "public": [
+            54.343625,
+            61.960083,
+            60.57475,
+            60.36775,
+            51.394625,
+            61.004166,
+            59.087375
+          ],
+          "previous": [
+            59.116625,
+            66.128292,
+            59.587791,
+            83.149208,
+            58.945792,
+            58.1565,
+            66.669042
+          ],
+          "candidate": [
+            57.492083,
+            68.207792,
+            60.644334,
+            58.323958,
+            58.09125,
+            62.841584,
+            59.468209
+          ],
+          "standalone": [
+            2.098708,
+            2.713709,
+            3.192875,
+            2.652541,
+            3.111458,
+            3.286834,
+            3.3135
+          ]
+        },
+        "medianMs": {
+          "public": 60.36775,
+          "previous": 59.587791,
+          "candidate": 59.468209,
+          "standalone": 3.111458
+        }
+      },
+      "valid-direct": {
+        "samplesMs": {
+          "public": [
+            53.299583,
+            55.056708,
+            52.872291,
+            54.960958,
+            57.001916,
+            54.53625,
+            56.6105
+          ],
+          "previous": [
+            57.990042,
+            54.830292,
+            56.448709,
+            54.595584,
+            54.078542,
+            55.936542,
+            61.559417
+          ],
+          "candidate": [
+            2.339334,
+            3.005833,
+            2.501334,
+            2.886292,
+            2.391667,
+            2.880834,
+            2.712792
+          ],
+          "standalone": [
+            2.33175,
+            2.479541,
+            2.840208,
+            2.357625,
+            2.364584,
+            2.375083,
+            2.907083
+          ]
+        },
+        "medianMs": {
+          "public": 54.960958,
+          "previous": 55.936542,
+          "candidate": 2.712792,
+          "standalone": 2.375083
+        }
+      },
+      "oversized": {
+        "samplesMs": {
+          "public": [
+            48.4345,
+            52.6525,
+            50.909875,
+            50.540875,
+            76.74125,
+            62.259958,
+            59.272583
+          ],
+          "previous": [
+            50.757833,
+            51.442625,
+            56.007833,
+            53.508792,
+            64.118167,
+            82.840209,
+            60.505375
+          ],
+          "candidate": [
+            51.8395,
+            57.831,
+            50.72375,
+            52.728542,
+            62.376375,
+            74.081041,
+            59.25125
+          ],
+          "standalone": [
+            2.191417,
+            4.099875,
+            2.619166,
+            2.715916,
+            3.438916,
+            3.286625,
+            3.8235
+          ]
+        },
+        "medianMs": {
+          "public": 52.6525,
+          "previous": 56.007833,
+          "candidate": 57.831,
+          "standalone": 3.286625
+        }
+      }
+    },
+    "binarySHA256": {
+      "public": "3431eca53719e077784f6aa71d2c7fbaff5d5a6dc9cce3dc70b5e2b054159455",
+      "previous": "6a9c73aa81c7b05e3a661ce964301661c1f53602d6db1529cdcf8cc991e9b791",
+      "candidate": "e182b1e0577c9a2af43583964f7ac0cdc5b72569475d2244c30e872ac9cf4165",
+      "standalone": "e182b1e0577c9a2af43583964f7ac0cdc5b72569475d2244c30e872ac9cf4165"
+    },
+    "rawSHA256": "8ab770b18132580c0f56b7247f42bd04b94efaf37dcc0c136a34c609164d88f5",
+    "driverSHA256": "56cac7a2d6ce9e9f8bf2e7f7e9c800a74431b481bb297c6388dc1cddce728498",
+    "limitations": "Local macOS arm64 .NET 10 and macOS compilation of Windows CLI Rust source. No native Windows process, actual credentials, network or deployment in this independent check."
+  },
+  "formalHarness": {
+    "run_id": "run-e4f583f49b6f40baa2469856782c37a0",
+    "decision": "INCONCLUSIVE",
+    "candidate_hash": "743ba229827c670ea788a8577d2a76468bfe8e68181a6188cbd09fd5346e7687",
+    "gate_order": [
+      "SECURITY",
+      "FACTUAL",
+      "CONTENT",
+      "FUNCTIONAL",
+      "ACCESSIBILITY",
+      "RESPONSIVE",
+      "VISUAL_UX",
+      "CODE_QUALITY",
+      "PERFORMANCE"
+    ],
+    "blockers": [],
+    "missing_evidence": [
+      "baseline not passing",
+      "candidate check unavailable",
+      "independent code review missing/stale"
+    ],
+    "improved": false,
+    "regression_ready": false,
+    "dimensions": {},
+    "time": "2026-11-27T01:27:41.351539+00:00"
+  },
+  "sha256": {
+    "packet": "f6492229cf4703770bce1c4d0e2d6ca0fdb6629ec5323b64ee6c27dd8c8776c8",
+    "independent": "ed34c60b2de20307d01751e8135d2a44b3ba465eca4e7cfc9724eb8809ef90b5",
+    "public-compare": "4f82ded14d652864bd1fe0338b4533c5448a8cf04195c818796a8b42d87c0df0",
+    "local-suite": "4be975fd018129c6a173509fef49333ab3ec955657c617fc5d22efe9ee6ba8b9"
+  },
+  "limits": [
+    "macOS runs execute portable companion code. These measurements precede native Windows CI on the integrated change."
+  ]
+}
