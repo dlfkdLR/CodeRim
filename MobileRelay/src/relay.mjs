@@ -3,7 +3,7 @@ import { HTTPError, requireValue, preferences, sanitizeSnapshot, activityPayload
   deviceLabel, eligibleProviders, ONLINE_WINDOW, READING_AGE } from './model.mjs';
 
 export { FREE_DAILY } from './budget.mjs';
-import { FREE_DAILY, RelayBudget } from './budget.mjs';
+import { FREE_DAILY, RelayBudget, relayClock } from './budget.mjs';
 export const HEARTBEAT = { normal: 300, busy: 600, critical: 1800 };
 const IDLE_END = 120, START_COOLDOWN = 300, START_RETRY = 60, ACTIVITY_LIFETIME = 8 * 3600;
 const MAX_ACTIVITIES_PER_PHONE = 16;
@@ -44,8 +44,8 @@ const freshUntil = (state, now) => Math.min(Infinity, ...state.providers
   .filter(at => at > now));
 
 export class Relay {
-  constructor({ store, push = async () => ({ status: 200 }), now = () => Date.now() / 1000, budgets = FREE_DAILY,
-    pollWait = 20000, schedule = () => {}, pushConfigured = true, quickPicker, snapshotRead }) {
+  constructor({ store, push = async () => ({ status: 200 }), now = relayClock, budgets = FREE_DAILY,
+    pollWait = 20000, schedule = () => {}, pushConfigured = true, quickPicker, snapshotRead, budgetPolicy }) {
     Object.assign(this, { store, push, now, budgets, pollWait, schedule, pushConfigured, quickPicker, snapshotRead });
     this.serialTasks = new Map();
     this.ticking = new Map();
@@ -54,7 +54,7 @@ export class Relay {
     this.waiters = new Map();
     // Steady heartbeats update only this; interval changes also persist their new deadline.
     this.seen = new Map();
-    this.budget = new RelayBudget({ store, now, budgets });
+    this.budget = new RelayBudget({ store, now, budgets, policy: budgetPolicy });
     // A fresh object does not know whether the alarm its predecessor needed was ever set (a failed
     // setAlarm in work after a response leaves nothing behind), so its first request runs a full pass,
     // which sets it again. A pass that fails to set its alarm asks for the same.

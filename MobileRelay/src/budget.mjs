@@ -11,12 +11,13 @@ const BUSY_AT = 0.7, CRITICAL_AT = 0.9;
 // they are claimed in larger steps: at most one row write per READ_RESERVE rows read.
 const USAGE_RESERVE = 20, READ_RESERVE = 5000;
 const BUSY_NOTICE = 'The CodeRim relay is busy today. Updates may be slower, and new connections are paused until 00:00 UTC.';
+export const relayClock = () => Date.now() / 1000;
 const day = now => Math.floor(now / 86400);
 
 /** Owns durable free-plan accounting independently of routing and push delivery. */
 export class RelayBudget {
-  constructor({ store, now, budgets }) {
-    Object.assign(this, { store, now, budgets });
+  constructor({ store, now, budgets, policy }) {
+    Object.assign(this, { store, now, budgets, policy });
     this.usage = { reads: 0, ...(store.meta('usage') ?? { day: day(now()), requests: 0, writes: 0 }) };
     this.writesAtLoad = store.writes; this.readsAtLoad = store.reads;
     this.saved = { ...this.usage, level: this.level() };
@@ -31,6 +32,11 @@ export class RelayBudget {
     const now = this.now();
     // Rows written but not yet counted go to the new day: when in the old day they were written is not
     // known, and over-counting the new day is the safe side.
+    // Older malformed JSON retains its original arithmetic and coercion.
+    if (this.policy && numericUsage(this.usage) && numericLimits(this.budgets) && typeof writes === 'number') {
+      this.policy.count(this, day(now), Boolean(request), writes);
+      return;
+    }
     if (this.usage.day !== day(now)) this.usage = { day: day(now), requests: 0, writes: 0, reads: 0 };
     if (request) this.usage.requests++;
     this.usage.writes += writes + this.store.writes - this.writesAtLoad; this.writesAtLoad = this.store.writes;
@@ -45,7 +51,13 @@ export class RelayBudget {
    * unused reserve, the safe side for a free allowance. One row per USAGE_RESERVE, counted like any other.
    */
   persistUsage() {
-    const level = this.level(), saved = this.saved;
+    const today = day(this.now());
+    const saved = this.saved;
+    if (this.policy && numericUsage(this.usage) && numericLimits(this.budgets) && numericUsage(saved)) {
+      this.policy.reserve(this, today);
+      return;
+    }
+    const level = this.levelAt(today);
     if (saved.day === this.usage.day && saved.level === level
         && this.usage.requests <= saved.requests && this.usage.writes <= saved.writes && this.usage.reads <= (saved.reads ?? 0)) return;
     const claim = { day: this.usage.day, requests: this.usage.requests + USAGE_RESERVE, writes: this.usage.writes + USAGE_RESERVE,
@@ -53,8 +65,10 @@ export class RelayBudget {
     this.store.saveMeta('usage', claim);
     this.saved = { ...claim, level };
   }
-  level() {
-    if (this.usage.day !== day(this.now())) return 'normal';
+  level() { return this.levelAt(day(this.now())); }
+  levelAt(today) {
+    if (this.usage.day !== today) return 'normal';
+    if (this.policy && numericUsage(this.usage) && numericLimits(this.budgets)) return this.policy.level(this.usage, this.budgets);
     const ratio = Math.max(this.usage.requests / this.budgets.requests, this.usage.writes / this.budgets.writes,
       this.budgets.reads ? this.usage.reads / this.budgets.reads : 0);
     return ratio >= CRITICAL_AT ? 'critical' : ratio >= BUSY_AT ? 'busy' : 'normal';
@@ -64,4 +78,64 @@ export class RelayBudget {
     if (this.level() !== 'normal') throw new HTTPError(503, 'server_busy');
   }
 
+}
+
+const levels = ['normal', 'busy', 'critical'];
+const numericLimits = limits => typeof limits.requests === 'number' && typeof limits.writes === 'number'
+  && (limits.reads == null || typeof limits.reads === 'number');
+const numericUsage = usage => typeof usage.day === 'number' && typeof usage.requests === 'number'
+  && typeof usage.writes === 'number' && typeof usage.reads === 'number';
+
+/** Bind the Worker's packaged Rust counters to its synchronous SQLite adapter. */
+export function wasmBudgetPolicy(getExports) {
+  let engine, output;
+  const native = () => {
+    if (!engine) {
+      engine = getExports();
+      output = new Float64Array(engine.memory.buffer, engine.budget_output(), 6);
+    }
+    return engine;
+  };
+  return {
+    count(budget, today, request, writes) {
+      const usage = budget.usage, store = budget.store;
+      const writeDelta = writes + store.writes - budget.writesAtLoad;
+      const readDelta = store.reads - budget.readsAtLoad;
+      const { saved, budgets } = budget;
+      // Injected clocks may inspect or change the relay when persistence asks
+      // for the second sample. Publish the counters before invoking those clocks.
+      const combined = budget.now === relayClock && numericUsage(saved);
+      const result = combined
+        ? native().budget_count(today, usage.day, usage.requests, usage.writes, usage.reads, request,
+          writeDelta, readDelta, day(budget.now()), budgets.requests, budgets.writes, budgets.reads || 0,
+          saved.day, saved.requests, saved.writes, saved.reads, levels.indexOf(saved.level))
+        : native().budget_record(today, usage.day, usage.requests, usage.writes, usage.reads, request, writeDelta, readDelta);
+      const rollover = combined ? (result & 4) : result;
+      if (rollover) budget.usage = { day: today, requests: output[0], writes: output[1], reads: output[2] };
+      else {
+        usage.requests = output[0]; usage.writes = output[1]; usage.reads = output[2];
+      }
+      budget.writesAtLoad = store.writes; budget.readsAtLoad = store.reads;
+      if (combined) save(budget, result & 3);
+      else budget.persistUsage();
+    },
+    level(usage, limits) {
+      return levels[native().budget_level(usage.requests, usage.writes, usage.reads,
+        limits.requests, limits.writes, limits.reads || 0)];
+    },
+    reserve(budget, today) {
+      const { usage, saved, budgets } = budget;
+      const result = native().budget_reserve(usage.day, usage.requests, usage.writes, usage.reads,
+        today, budgets.requests, budgets.writes, budgets.reads || 0, saved.day,
+        saved.requests, saved.writes, saved.reads, levels.indexOf(saved.level));
+      save(budget, result);
+    },
+  };
+
+  function save(budget, result) {
+    if (!result) return;
+    const claim = { day: budget.usage.day, requests: output[3], writes: output[4], reads: output[5] };
+    budget.store.saveMeta('usage', claim);
+    budget.saved = { day: claim.day, requests: claim.requests, writes: claim.writes, reads: claim.reads, level: levels[result - 1] };
+  }
 }
