@@ -38,6 +38,10 @@ bool cr_turn_scan(int32_t fd, uint64_t lower, uint64_t end, bool include_first,
 typedef struct { intptr_t start; size_t end; } CRActivityField;
 CRActivityField cr_activity_field(const uint8_t *data, size_t length, const uint8_t *marker,
                                   size_t marker_length, size_t from, bool quoted);
+/* Kinds, in decreasing precedence: 5 session metadata, 4 settings, 3 turn,
+   2 tool, 1 user message, 0 ignored. Offsets borrow the input for this call. */
+typedef struct { uint8_t kind; CRActivityField stamp, primary, secondary; } CRCodexActivityRecord;
+CRCodexActivityRecord cr_codex_activity_record(const uint8_t *data, size_t length);
 /* True when a bounded local Codex log row contains the accounting, metadata or image
    markers considered by the released importer. The decoder still validates the row. */
 bool cr_codex_import_candidate(const uint8_t *data, size_t length);

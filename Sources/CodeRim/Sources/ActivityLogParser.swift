@@ -277,38 +277,92 @@ struct CodexActivityParser {
         self.days = days
     }
 
-    mutating func consume(_ line: Data) {
-        if LogBytes.contains(line, Self.sessionMeta) {
-            rawSessionID = LogBytes.string(after: Self.sessionIDKey, in: line)?.value ?? rawSessionID
-            isSubagent = LogBytes.string(after: Self.parentThread, in: line).map { !$0.value.isEmpty } ?? false
-            return
-        }
-        if LogBytes.contains(line, Self.settings) {
-            if let value = LogBytes.string(after: Self.tier, in: line)?.value { tier = value }
-            return
-        }
-        guard let stamp = LogBytes.string(after: Self.timestamp, in: line)?.value,
-              let day = days.day(of: stamp) else { return }
+    private enum Kind: UInt8 { case ignored, message, tool, turn, settings, metadata }
 
-        if LogBytes.contains(line, Self.turnContext) {
-            guard let model = LogBytes.string(after: Self.model, in: line)?.value, !model.isEmpty else { return }
-            self.model = model
-            activity.traits.models[model, default: 0] += 1
-            if let effort = LogBytes.string(after: Self.effort, in: line)?.value, !effort.isEmpty {
-                activity.traits.efforts[ActivityNames.effort(effort), default: 0] += 1
+    mutating func consume(_ line: Data) {
+#if CODERIM_RUST_ACCOUNTING
+        let (kind, stamp, first, second) = line.withUnsafeBytes { raw in
+            let bytes = raw.bindMemory(to: UInt8.self)
+            let record = cr_codex_activity_record(bytes.baseAddress, bytes.count)
+            let kind = Kind(rawValue: record.kind) ?? .ignored
+            func value(_ field: CRActivityField, _ marker: Data) -> String? {
+                if field.start == -2 { return LogBytes.string(after: marker, in: line)?.value }
+                guard field.start >= 0 else { return nil }
+                return String(decoding: bytes[field.start..<field.end], as: UTF8.self)
             }
-            activity.traits.speeds[ActivityNames.speed(tier), default: 0] += 1
+            var first: String?
+            var second: String?
+            switch kind {
+            case .metadata:
+                first = value(record.primary, Self.sessionIDKey)
+                second = value(record.secondary, Self.parentThread)
+            case .settings: first = value(record.primary, Self.tier)
+            case .turn:
+                first = value(record.primary, Self.model)
+                second = value(record.secondary, Self.effort)
+            case .tool:
+                first = value(record.primary, Self.name)
+                if record.secondary.start == -2 { second = skillRead(in: line) }
+                else if record.secondary.start >= 0 {
+                    second = String(decoding: bytes[record.secondary.start..<record.secondary.end], as: UTF8.self)
+                }
+            case .message: if !isSubagent { first = value(record.primary, Self.text) }
+            case .ignored: break
+            }
+            return (kind, value(record.stamp, Self.timestamp), first, second)
+        }
+#else
+        let kind: Kind
+        let first: String?
+        var second: String?
+        if LogBytes.contains(line, Self.sessionMeta) {
+            kind = .metadata
+            first = LogBytes.string(after: Self.sessionIDKey, in: line)?.value
+            second = LogBytes.string(after: Self.parentThread, in: line)?.value
+        } else if LogBytes.contains(line, Self.settings) {
+            kind = .settings
+            first = LogBytes.string(after: Self.tier, in: line)?.value
+        } else if LogBytes.contains(line, Self.turnContext) {
+            kind = .turn
+            first = LogBytes.string(after: Self.model, in: line)?.value
+            second = LogBytes.string(after: Self.effort, in: line)?.value
         } else if LogBytes.contains(line, Self.functionCall) || LogBytes.contains(line, Self.customCall) {
-            guard let raw = LogBytes.string(after: Self.name, in: line)?.value, !raw.isEmpty else { return }
-            let tool = ActivityNames.tool(raw)
+            kind = .tool
+            first = LogBytes.string(after: Self.name, in: line)?.value
+            if first?.isEmpty == false { second = skillRead(in: line) }
+        } else if !isSubagent, LogBytes.contains(line, Self.userRole), LogBytes.contains(line, Self.message) {
+            kind = .message
+            first = LogBytes.string(after: Self.text, in: line)?.value
+        } else { return }
+        let stamp = kind == .metadata || kind == .settings ? nil : LogBytes.string(after: Self.timestamp, in: line)?.value
+#endif
+        if kind == .metadata {
+            rawSessionID = first ?? rawSessionID
+            isSubagent = second.map { !$0.isEmpty } ?? false
+            return
+        }
+        if kind == .settings {
+            if let first { tier = first }
+            return
+        }
+        guard let stamp, let day = days.day(of: stamp), let first else { return }
+        switch kind {
+        case .turn:
+            guard !first.isEmpty else { return }
+            model = first
+            activity.traits.models[first, default: 0] += 1
+            if let second, !second.isEmpty { activity.traits.efforts[ActivityNames.effort(second), default: 0] += 1 }
+            activity.traits.speeds[ActivityNames.speed(tier), default: 0] += 1
+        case .tool:
+            guard !first.isEmpty else { return }
+            let tool = ActivityNames.tool(first)
             activity.edit(day) { $0.tools[tool, default: 0] += 1 }
-            if let skill = skillRead(in: line) { activity.edit(day) { $0.skills[skill, default: 0] += 1 } }
-        } else if LogBytes.contains(line, Self.userRole), LogBytes.contains(line, Self.message) {
-            // What the person typed, not the context Codex adds around it.
-            guard !isSubagent, let typed = LogBytes.string(after: Self.text, in: line)?.value,
-                  !typed.hasPrefix("<"), !typed.hasPrefix("# AGENTS") else { return }
+            if let second { activity.edit(day) { $0.skills[second, default: 0] += 1 } }
+        case .message:
+            guard !isSubagent, !first.hasPrefix("<"), !first.hasPrefix("# AGENTS") else { return }
             let answeredBy = model ?? "Unknown"
             activity.edit(day) { $0.messagesByModel[answeredBy, default: 0] += 1 }
+        default: return
         }
     }
 

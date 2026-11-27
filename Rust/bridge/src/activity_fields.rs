@@ -95,3 +95,114 @@ pub unsafe extern "C" fn cr_activity_field(
         None => Field::ABSENT,
     }
 }
+
+#[repr(C)]
+pub struct CodexRecord {
+    kind: u8,
+    stamp: Field,
+    primary: Field,
+    secondary: Field,
+}
+
+// Several types may coexist in a rollout row. Preserve the published marker
+// priority regardless of their order, including markers in non-JSON text.
+fn codex_kind(bytes: &[u8]) -> u8 {
+    const TYPE: &[u8] = br#""type":""#;
+    static TYPES: LazyLock<memmem::Finder<'static>> = LazyLock::new(|| memmem::Finder::new(TYPE));
+    let mut result = 0;
+    let mut offset = 0;
+    while let Some(pos) = TYPES.find(&bytes[offset..]) {
+        let end = offset + pos + TYPE.len();
+        let rest = &bytes[end..];
+        let kind = match rest.first() {
+            Some(b's') if rest.starts_with(br#"session_meta""#) => return 5,
+            Some(b't') if rest.starts_with(br#"thread_settings_applied""#) => 4,
+            Some(b't') if rest.starts_with(br#"turn_context""#) => 3,
+            Some(b'f') if rest.starts_with(br#"function_call""#) => 2,
+            Some(b'c') if rest.starts_with(br#"custom_tool_call""#) => 2,
+            Some(b'm') if rest.starts_with(br#"message""#) => 1,
+            _ => 0,
+        };
+        result = result.max(kind);
+        // A malformed record can use this quote to start another compact marker.
+        offset = end - 1;
+    }
+    if result == 1 && memmem::find(bytes, br#""role":"user""#).is_none() {
+        0
+    } else {
+        result
+    }
+}
+
+fn codex_skill(bytes: &[u8]) -> Field {
+    const DIR: &[u8] = b"/skills/";
+    let mut offset = 0;
+    while let Some(pos) = memmem::find(&bytes[offset..], DIR) {
+        offset += pos + DIR.len();
+        let tail = &bytes[offset..];
+        let Some(end) = memchr::memchr(b'/', &tail[..tail.len().min(128)]) else {
+            continue;
+        };
+        if end != 0 && tail[end + 1..].starts_with(b"SKILL.md") {
+            if tail[..end].contains(&b'\\') {
+                if !tail[..end].is_ascii() {
+                    return Field::NATIVE;
+                }
+                continue;
+            }
+            return Field {
+                start: offset as isize,
+                end: offset + end,
+            };
+        }
+    }
+    Field::ABSENT
+}
+
+/// # Safety
+/// The caller lends length readable bytes and consumes the returned ranges
+/// before changing them. A negative field is absent (-1) or escaped (-2).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cr_codex_activity_record(data: *const u8, length: usize) -> CodexRecord {
+    let mut record = CodexRecord {
+        kind: 0,
+        stamp: Field::ABSENT,
+        primary: Field::ABSENT,
+        secondary: Field::ABSENT,
+    };
+    if data.is_null() || length == 0 || length > isize::MAX as usize {
+        return record;
+    }
+    let bytes = unsafe { slice::from_raw_parts(data, length) };
+    record.kind = codex_kind(bytes);
+    let string = |marker: &[u8]| unsafe {
+        cr_activity_field(data, length, marker.as_ptr(), marker.len(), 0, true)
+    };
+    match record.kind {
+        5 => {
+            record.primary = string(br#""id":""#);
+            record.secondary = string(br#""parent_thread_id":""#);
+        }
+        4 => record.primary = string(br#""service_tier":""#),
+        1..=3 => {
+            record.stamp = string(br#""timestamp":""#);
+            if record.stamp.start != -1 {
+                match record.kind {
+                    3 => {
+                        record.primary = string(br#""model":""#);
+                        record.secondary = string(br#""effort":""#);
+                    }
+                    2 => {
+                        record.primary = string(br#""name":""#);
+                        if record.primary.start != -1 {
+                            record.secondary = codex_skill(bytes);
+                        }
+                    }
+                    _ => record.primary = string(br#""text":""#),
+                }
+            }
+        }
+        _ => {}
+    }
+    record
+}
