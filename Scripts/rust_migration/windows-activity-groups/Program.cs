@@ -4,6 +4,15 @@ using System.Text.Json;
 using CodeRim.Core.Services;
 
 var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+if (args is ["runtime"])
+{
+    Console.WriteLine(JsonSerializer.Serialize(new {
+        architecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(),
+        framework = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
+        os = System.Runtime.InteropServices.RuntimeInformation.OSDescription
+    }, options));
+    return;
+}
 if (args is ["first", var kind, var size])
 {
     int count = int.Parse(size, System.Globalization.CultureInfo.InvariantCulture);

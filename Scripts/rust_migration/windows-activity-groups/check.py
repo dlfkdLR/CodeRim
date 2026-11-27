@@ -27,6 +27,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reference-source", type=Path, required=True)
     parser.add_argument("--library", type=Path, required=True)
+    parser.add_argument("--runtime", type=Path, help="Execute the built IL using this dotnet runtime host.")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     reference = args.reference_source.resolve(strict=True)
@@ -34,9 +35,10 @@ def main():
         parser.error("Reference checkout must be v2.1.41.")
     library = args.library.resolve(strict=True)
     dotnet = shutil.which("dotnet") or str(Path.home() / ".dotnet/dotnet")
+    runtime = args.runtime.resolve(strict=True) if args.runtime else dotnet
     env = {**os.environ, "DOTNET_CLI_TELEMETRY_OPTOUT": "1"}
     warm = {**env, "DOTNET_TieredCompilation": "0"}
-    report = {"reference": PUBLIC, "candidate": revision(ROOT), "platform": platform.platform(), "arch": platform.machine(),
+    report = {"reference": PUBLIC, "candidate": revision(ROOT), "platform": platform.platform(), "buildHostArch": platform.machine(),
               "librarySha256": sha(library.read_bytes()), "assemblies": {}}
     with tempfile.TemporaryDirectory(prefix="coderim-activity-groups-") as tmp:
         binaries = {}
@@ -52,9 +54,12 @@ def main():
             report["assemblies"][name] = sha(binary.with_name("CodeRim.Core.dll").read_bytes())
 
         def run(name, environment, *arguments):
-            out = subprocess.check_output([dotnet, binaries[name], *arguments], env=environment)
+            out = subprocess.check_output([runtime, binaries[name], *arguments], env=environment)
             return [json.loads(line) for line in out.splitlines()]
 
+        report["runtime"] = run("release", env, "runtime")[0]
+        if run("rust", env, "runtime")[0] != report["runtime"]:
+            raise ValueError("Reference and candidate ran on different runtimes")
         release = run("release", env, "contract")
         rust = run("rust", env, "contract")
         if rust != release:
