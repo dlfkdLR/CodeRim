@@ -303,7 +303,7 @@ jobs:
       - name: Check out the previous Windows activity timer implementation
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: 8060a48cf322831f2b9a3d8ffabf9459117863a9
+          ref: 79c865e2acd7bd81e89f5952a73bbc4655770b5a
           path: .migration-refresh-previous
           persist-credentials: false
       - name: Compare published WPF activity transitions and callbacks

@@ -13,7 +13,7 @@ import tempfile
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 PUBLIC = "14c332b30fd35cd266b40a4f9384b4b065b63707"
-PREVIOUS = "8060a48c"
+PREVIOUS = ("8060a48c", "79c865e2")
 HANDLER = Path("Windows/src/CodeRim.Windows/ViewModels/DashboardStore.cs")
 
 
@@ -105,6 +105,31 @@ def main():
                 cases = cold.setdefault(f"{size}/{shape}", {k: [] for k in binaries})
                 for kind in order:
                     cases[kind].append(execute(kind, env, "first", str(size), shape)[0])
+        sequences = {}
+        for size in (1, 8, 64):
+            for shape in ("steady", "transition"):
+                for mode in ("cold", "active"):
+                    values = {k: [] for k in binaries}
+                    expected = None
+                    for trial in range(5):
+                        order = tuple(binaries)[trial % 3:] + tuple(binaries)[:trial % 3]
+                        for kind in order:
+                            stages = execute(kind, env, "sequence", str(size), shape, mode)
+                            digests = [s["digest"] for s in stages]
+                            if len(stages) != 3 or (expected is not None and digests != expected):
+                                raise ValueError((kind, size, shape, mode, "Consecutive activity observations differ"))
+                            expected = digests
+                            values[kind].append(stages)
+                    sequences[f"{size}/{shape}/{mode}"] = {
+                        "stageDigests": expected,
+                        "stages": {k: [[{"us": s["us"], "bytes": s["bytes"]} for s in run]
+                                       for run in runs] for k, runs in values.items()},
+                        "sumMedianUs": {k: statistics.median(sum(s["us"] for s in run) for run in runs)
+                                        for k, runs in values.items()},
+                        "sumMedianManagedBytes": {k: statistics.median(sum(s["bytes"] for s in run) for run in runs)
+                                                  for k, runs in values.items()},
+                    }
+        report["firstThreeUpdates"] = sequences
         report["defaultJitFirstCalls"] = cold
         report["warmSamples"] = samples
         report["warmMedians"] = []

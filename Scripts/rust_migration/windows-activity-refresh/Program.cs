@@ -21,6 +21,38 @@ if (args[0] == "bench" || args.Contains("active"))
         new("one", "codex", "One", "busy", stamp), new("two", "claude", "Two", "idle", stamp)
     }).Count != 2) throw new InvalidOperationException("Session tree precondition failed.");
 }
+if (args is ["sequence", var size, var shape, _])
+{
+    int count = int.Parse(size);
+    var stamp = DateTimeOffset.UnixEpoch;
+    var frames = Enumerable.Range(0, 3).Select(stage => Enumerable.Range(0, count).Select(i =>
+        new SessionActivity("session-" + i, i % 2 == 0 ? "claude" : "codex", "item-" + i,
+            shape == "steady" || stage == 0 ? "busy" : stage == 1 ? "waiting" : "idle", stamp)
+        { ProcessId = 30 + i, ParentThreadId = i > 1 && i % 4 == 0 ? "session-0" : null }).ToArray()).ToArray();
+    var store = new Store(Array.Empty<SessionActivity>(), OptionsFor(3));
+    int changed = 0;
+    var sounds = new List<string>();
+    var attention = new List<string>();
+    store.Published += () => changed++;
+    SessionChime.Played = sound => sounds.Add(sound);
+    store.SessionAttentionRequested += row => attention.Add(row.Id);
+    foreach (var frame in frames)
+    {
+        var prior = store.Sessions;
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        long start = Stopwatch.GetTimestamp();
+        store.UpdateSessionActivity(frame);
+        double us = Stopwatch.GetElapsedTime(start).TotalMicroseconds;
+        long bytes = GC.GetAllocatedBytesForCurrentThread() - before;
+        var rows = store.Sessions;
+        var observed = new { changed, sounds, attention, values = rows, sameArray = ReferenceEquals(rows, frame),
+            inputReferences = rows.Select((row, i) => ReferenceEquals(row, frame[i])),
+            priorReferences = rows.Select((row, i) => i < prior.Count && ReferenceEquals(row, prior[i])) };
+        byte[] payload = JsonSerializer.SerializeToUtf8Bytes(observed, json);
+        Console.WriteLine(JsonSerializer.Serialize(new { us, bytes, digest = Convert.ToHexString(SHA256.HashData(payload)) }, json));
+    }
+    return;
+}
 if (args is ["bench", ..] || args is ["first", ..])
 {
     var counts = args.Length > 1 ? new[] { int.Parse(args[1]) } : new[] { 0, 1, 2, 8, 32, 64, 256, 1024 };
