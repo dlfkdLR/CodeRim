@@ -12,8 +12,9 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 MODEL = "iOS/CodeRimMobile/MobileAppModel.swift"
 
-def method(source, signature):
-    start = source.index("    private func " + signature)
+def method(source, signature, *, static=False):
+    prefix = "    private static func " if static else "    private func "
+    start = source.index(prefix + signature)
     end = source.index("\n    }", start) + len("\n    }")
     return source[start:end].replace("private func ", "func ", 1)
 
@@ -29,6 +30,8 @@ def main():
         for name in ["release","native","rust"]:
             source = subprocess.check_output(["git","-C",ROOT,"show","v2.1.41:"+MODEL],text=True) if name=="release" else (ROOT/MODEL).read_text()
             methods = "\n".join([method(source,"registerStarter("),method(source,"register(")])
+            if name != "release":
+                methods += "\n" + method(source, "pushTokenText(", static=True)
             methods = methods.replace("Activity<CodeRimActivityAttributes>", "FixtureActivity")
             methods = methods.replace("Task.sleep(for: .seconds(delay))", "FixtureClock.sleep(delay)")
             policy = ""
@@ -38,7 +41,7 @@ def main():
                 policy = source[start:end].replace("Task.sleep(for: .seconds($0))", "FixtureClock.sleep($0)")
             swift = root/(name+".swift")
             swift.write_text((HERE/"fixture.swift").read_text().replace("/* product methods */",methods).replace("/* policy */",policy))
-            flags = (["-D","CODERIM_RUST_MOBILE_SELECTION","-I",ROOT/"Rust/bridge/include",
+            flags = (["-D","CODERIM_RUST_MOBILE_SELECTION","-D","CODERIM_RUST_MOBILE_DIGEST","-I",ROOT/"Rust/bridge/include",
                       args.archive.resolve(),"-framework","CoreGraphics","-lsqlite3"] if name=="rust" else [])
             exe = root/name
             subprocess.run(["swiftc","-O","-swift-version","6","-parse-as-library","-target",args.arch+"-apple-macosx14.0",swift,*flags,"-o",exe],check=True)

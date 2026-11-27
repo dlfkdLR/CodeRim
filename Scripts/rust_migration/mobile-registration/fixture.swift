@@ -42,7 +42,10 @@ enum Simulated: Error { case rejected }
     static let payloads: [(Data,String)] = [
         (Data([0,9,15,16,255]), "00090f10ff"),
         (Data(repeating: 171,count:32), String(repeating:"ab",count:32)),
-    ]
+    ] + [0, 1, 2, 15, 16, 31, 32, 33, 63, 64, 65, 128, 255, 256, 513, 4096].map { length in
+        let bytes = Data((0..<length).map { UInt8(truncatingIfNeeded: $0) })
+        return (bytes, bytes.map { String(format: "%02x", $0) }.joined())
+    }
     var loginGeneration = UUID()
     var credential: FixtureCredential? = .init()
     lazy var connection = FixtureClient(self)
@@ -67,6 +70,17 @@ enum Simulated: Error { case rejected }
 @main struct Runner {
     @MainActor static func main() async {
         let bench=CommandLine.arguments.count>1
+        if !bench {
+            for (index, fixture) in Model.payloads.enumerated() {
+                let model = Model()
+                await model.registerStarter(fixture.0, generation: model.loginGeneration)
+                let activity = FixtureActivity()
+                model.register(fixture.0, activity: activity)
+                await model.registrations[activity.id]?.value
+                precondition(model.timeline.filter { $0 == "send" + String(index) }.count == 2)
+                print("wire", index, fixture.0.count, model.sent)
+            }
+        }
         var sum:UInt64=0,count=0,timed:UInt64=0
         for _ in 0..<(bench ? 2:1) {
             for operation in 0..<4 {
