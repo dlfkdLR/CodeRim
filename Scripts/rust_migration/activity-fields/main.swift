@@ -217,6 +217,65 @@ func dayActivityCopies() {
   }
 }
 
+func codexSessionBranches() {
+  let stamp = #""timestamp":"2026-11-01T06:35:44Z""#
+  func record(_ type: String, _ extra: String, tomorrow: Bool = false) -> Data {
+    let time = tomorrow ? stamp.replacingOccurrences(of: "11-01", with: "11-02") : stamp
+    return Data(("{\"type\":\"" + type + "\"," + time + "," + extra + "}").utf8)
+  }
+  func text(_ raw: String) -> String { Data(raw.utf8).base64EncodedString() }
+  func counts(_ value: [String: Int]) -> String {
+    value.map { text($0.key) + "=" + String($0.value) }.sorted().joined(separator: ",")
+  }
+  func dump(_ parser: CodexActivityParser) -> String {
+    let file = parser.finish()
+    let days = file.days.sorted { $0.key < $1.key }.map { date, day in
+      [String(date.timeIntervalSinceReferenceDate.bitPattern), counts(day.messagesByModel),
+       counts(day.tools), counts(day.skills)].joined(separator: "/")
+    }
+    return ([parser.rawSessionID.map(text) ?? "-", counts(file.traits.models),
+             counts(file.traits.efforts), counts(file.traits.speeds)] + days).joined(separator: "|")
+  }
+  for zone in ["America/New_York", "Australia/Lord_Howe", "Asia/Seoul"] {
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = TimeZone(identifier: zone)!
+    let days = ActivityDayResolver(calendar: cal)
+    var parser = CodexActivityParser(days: days)
+    let composed = "é", decomposed = "e\u{301}"
+    let hello = record("message", #""role":"user","text":"질문""#)
+    let rows = [
+      record("session_meta", #""id":"first""#), hello,
+      record("thread_settings_applied", #""service_tier":"p\riority""#),
+      record("turn_context", "\"model\":\"" + composed + "\",\"effort\":\"xhigh\""),
+      record("turn_context", "\"model\":\"" + decomposed + "\",\"effort\":\"groß\""), hello,
+      record("function_call", "\"name\":\"" + decomposed + "\",\"path\":\"/skills/" + composed + "/SKILL.md\""),
+      record("function_call", "\"name\":\"" + composed + "\",\"path\":\"/skills/" + decomposed + "/SKILL.md\""),
+      record("function_call", "\"name\":\"" + composed + "\",\"path\":\"/skills/" + decomposed + "/SKILL.md\"", tomorrow: true),
+      record("session_meta", #""parent_thread_id":"child""#), hello,
+      record("session_meta", #""id":"" "#), hello,
+      record("message", "\"role\":\"user\",\"text\":\"<\u{301}\""),
+      record("message", "\"role\":\"user\",\"text\":\"# AGENTS\u{301}\""),
+      record("message", ##""role":"user","text":"\# AGENTS ignored""##),
+      record("message", "\"role\":\"user\",\"text\":\"" + String(repeating: "\\x", count: 2055) + "\""),
+      record("message", "\"role\":\"user\",\"text\":\"" + String(repeating: "\\x", count: 2055) + "x\""),
+    ]
+    for (i, row) in rows.enumerated() {
+      parser.consume(row)
+      let original = dump(parser)
+      var branch = parser
+      branch.consume(record("session_meta", #""id":"branch""#))
+      branch.consume(record("turn_context", #""model":"branch-model","effort":"low""#))
+      branch.consume(hello)
+      precondition(dump(parser) == original)
+      print("branch", zone, i, original, dump(branch))
+    }
+    for i in 0..<520 {
+      parser.consume(record("function_call", "\"name\":\"mcp__server__tool-\(i % 263)\""))
+    }
+    print("eviction", zone, dump(parser))
+  }
+}
+
 if CommandLine.arguments.contains("--bench") {
   for provider in ["codex", "claude"] {
     for count in [60, 1440, 10080] {
@@ -232,6 +291,7 @@ if CommandLine.arguments.contains("--bench") {
   edgeCases()
   dates()
   codexRecordEdges()
+  codexSessionBranches()
   claudeToolBlocks()
   dayActivityCopies()
   for provider in ["codex", "claude"] {
