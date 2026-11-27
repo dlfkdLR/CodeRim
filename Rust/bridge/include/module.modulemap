@@ -23,6 +23,7 @@ module CCodeRimAccounting {
     header "coderim_statistics.h"
     header "coderim_quality.h"
     header "coderim_completion.h"
+    header "coderim_usage_refresh.h"
     header "coderim_settings_navigation.h"
     header "coderim_notch_interaction.h"
     header "coderim_reading_archive.h"

@@ -33,8 +33,7 @@ final class UsageStore: ObservableObject {
     private var clockChangeTask: Task<Void, Never>?
     private var timeZoneChangeTask: Task<Void, Never>?
     private var calendarBoundaryTask: Task<Void, Never>?
-    private var refreshPending = false
-    private var pendingForceAnalytics = false
+    private var refreshRequests = UsageRefreshRequests()
     private var requestedAnalyticsRanges: Set<AnalyticsRange> = [.today]
     private var analyticsRevision: UInt64 = 0
     private var analyticsRequests: [AnalyticsRange: UUID] = [:]
@@ -42,7 +41,7 @@ final class UsageStore: ObservableObject {
     private var analyticsRefreshDates: [AnalyticsRange: Date] = [:]
     private var analyticsCalendars: [AnalyticsRange: Calendar] = [:]
     private var previousWeekStartRawValue = WeekStart.monday.rawValue
-    private var previousRefreshModeRawValue = RefreshMode.automatic.rawValue
+    private var previousRefreshPolicy = UsageRefreshPolicy(nil)
 
     var sourceStatusText: String {
         if !hasLoadedSnapshot || (isRefreshing && lastSourceRefreshAt == nil) {
@@ -93,7 +92,7 @@ final class UsageStore: ObservableObject {
     func startAutomaticRefresh() {
         guard refreshSchedulerTask == nil else { return }
         previousWeekStartRawValue = storedWeekStartRawValue
-        previousRefreshModeRawValue = currentRefreshMode.rawValue
+        previousRefreshPolicy = currentRefreshPolicy
         refreshSchedulerTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(5))
@@ -107,7 +106,7 @@ final class UsageStore: ObservableObject {
             )
             for await _ in notifications {
                 guard !Task.isCancelled else { return }
-                if self?.currentRefreshMode == .manual {
+                if self?.currentRefreshPolicy.pollingInterval == nil {
                     await self?.recalculateVisiblePeriods()
                 } else {
                     await self?.refresh()
@@ -126,10 +125,10 @@ final class UsageStore: ObservableObject {
                     self.previousWeekStartRawValue = weekStart
                     await self.recalculateVisiblePeriods()
                 }
-                let refreshMode = self.currentRefreshMode.rawValue
-                if refreshMode != self.previousRefreshModeRawValue {
-                    self.previousRefreshModeRawValue = refreshMode
-                    self.updateWatcherForRefreshMode()
+                let policy = self.currentRefreshPolicy
+                if policy != self.previousRefreshPolicy {
+                    self.previousRefreshPolicy = policy
+                    self.updateWatcher(for: self.currentRefreshPolicy)
                     await self.refresh()
                 }
             }
@@ -172,24 +171,14 @@ final class UsageStore: ObservableObject {
     }
 
     func refresh(forceAnalytics: Bool = true) async {
-        guard !isMaintainingData else {
-            refreshPending = true
-            pendingForceAnalytics = pendingForceAnalytics || forceAnalytics
-            return
-        }
-        guard !isRefreshing else {
-            refreshPending = true
-            pendingForceAnalytics = pendingForceAnalytics || forceAnalytics
-            return
-        }
-        let forceAnalytics = forceAnalytics || pendingForceAnalytics
-        pendingForceAnalytics = false
+        guard let forceAnalytics = refreshRequests.begin(
+            whileBusy: isMaintainingData || isRefreshing, forceAnalytics: forceAnalytics
+        ) else { return }
         isRefreshing = true
         await DiagnosticsLogger.shared.record(.refreshStarted)
         defer {
             isRefreshing = false
-            if refreshPending {
-                refreshPending = false
+            if refreshRequests.takePending() {
                 scheduleContinuationRefresh()
             }
         }
@@ -223,7 +212,7 @@ final class UsageStore: ObservableObject {
                     lastAutomaticAnalyticsRevision = result.analyticsRevision
                 }
             }
-            updateWatcherForRefreshMode()
+            updateWatcher(for: currentRefreshPolicy)
             await DiagnosticsLogger.shared.record(
                 .refreshCompleted(
                     quality: result.snapshot.quality,
@@ -304,7 +293,7 @@ final class UsageStore: ObservableObject {
             hasLoadedSnapshot = true
             dataStatistics = result.statistics
             sourceCount = result.sourceCount
-            refreshPending = false
+            refreshRequests.takePending()
             lastSourceRefreshAt = Date()
             isImportingHistory = result.hasMoreWork
             await refreshRequestedAnalytics(using: collector)
@@ -337,7 +326,7 @@ final class UsageStore: ObservableObject {
         let collector = CodexUsageCollector(database: setup.0, roots: setup.1, provider: provider)
         self.collector = collector
         sourceRoots = setup.1
-        updateWatcherForRefreshMode()
+        updateWatcher(for: currentRefreshPolicy)
         return collector
     }
 
@@ -459,8 +448,8 @@ final class UsageStore: ObservableObject {
         watcher = nil
     }
 
-    private func updateWatcherForRefreshMode() {
-        if currentRefreshMode.usesFileEvents {
+    private func updateWatcher(for policy: UsageRefreshPolicy) {
+        if policy.usesFileEvents {
             startWatcher(roots: sourceRoots)
         } else {
             stopWatcher()
@@ -472,7 +461,7 @@ final class UsageStore: ObservableObject {
     }
 
     private func scheduleRefresh(delay: Duration) {
-        guard currentRefreshMode.usesFileEvents else { return }
+        guard currentRefreshPolicy.usesFileEvents else { return }
         scheduleRefreshRegardlessOfMode(delay: delay)
     }
 
@@ -490,8 +479,8 @@ final class UsageStore: ObservableObject {
         }
     }
 
-    private var currentRefreshMode: RefreshMode {
-        RefreshMode(rawValue: defaults.string(forKey: "refreshMode") ?? "") ?? .automatic
+    private var currentRefreshPolicy: UsageRefreshPolicy {
+        UsageRefreshPolicy(defaults.string(forKey: "refreshMode"))
     }
 
     private var selectedWeekStart: WeekStart {
@@ -499,25 +488,19 @@ final class UsageStore: ObservableObject {
     }
 
     private var storedWeekStartRawValue: Int {
-        defaults.object(forKey: "weekStart") == nil
-            ? WeekStart.monday.rawValue
-            : defaults.integer(forKey: "weekStart")
+        guard let value = defaults.object(forKey: "weekStart") else { return WeekStart.monday.rawValue }
+        return (value as? Int) ?? defaults.integer(forKey: "weekStart")
     }
 
     private func refreshIfScheduled(now: Date = Date()) {
-        guard let seconds = currentRefreshMode.pollingInterval else { return }
-        guard let lastSourceRefreshAt else {
-            Task { await refresh(forceAnalytics: false) }
-            return
-        }
-        guard now.timeIntervalSince(lastSourceRefreshAt) >= seconds else { return }
+        let elapsed = lastSourceRefreshAt.map { now.timeIntervalSince($0) }
+        guard currentRefreshPolicy.shouldPoll(elapsed: elapsed) else { return }
         Task { await refresh(forceAnalytics: false) }
     }
 
     func recalculateVisiblePeriods() async {
         guard !isMaintainingData, !isRefreshing else {
-            refreshPending = true
-            pendingForceAnalytics = true
+            _ = refreshRequests.begin(whileBusy: true, forceAnalytics: true)
             return
         }
         do {
@@ -607,18 +590,6 @@ enum RefreshMode: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var usesFileEvents: Bool { self == .automatic }
-
-    var pollingInterval: TimeInterval? {
-        switch self {
-        case .automatic: 60
-        case .thirtySeconds: 30
-        case .oneMinute: 60
-        case .twoMinutes: 120
-        case .fiveMinutes: 300
-        case .fifteenMinutes: 900
-        case .thirtyMinutes: 1_800
-        case .manual: nil
-        }
-    }
+    var usesFileEvents: Bool { UsageRefreshPolicy(rawValue).usesFileEvents }
+    var pollingInterval: TimeInterval? { UsageRefreshPolicy(rawValue).pollingInterval }
 }

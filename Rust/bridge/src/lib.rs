@@ -102,6 +102,8 @@ mod token_json;
 mod transcript;
 #[cfg(target_os = "macos")]
 mod turn_activity;
+#[cfg(any(target_os = "macos", test))]
+mod usage_refresh;
 #[cfg(target_os = "macos")]
 mod window_placement;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
