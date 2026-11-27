@@ -108,6 +108,26 @@ with private_fixture() as tmp:
                 compare('native display metadata ' + cmd + ' ' + fmt, argv, native_env, native_cases)
                 status, stdout, stderr = execute(candidate, argv, native_env)
                 assert status == 0 and b'SYNTHETIC_PRIVATE' not in stdout + stderr
+        # Removing the helper above also detects any silent delegation to the CLR.
+        cost_snapshot = copy.deepcopy(originals)
+        midpoint = float.fromhex('0x1.6500000000000p-13')
+        cost_snapshot['providers'][0]['limits']['windows'][0]['usedPercent'] = midpoint
+        history = {
+            'currency': 'USD', 'historyDays': 30, 'historyLabel': 'Fixture credits',
+            'windowEnd': '2024-03-01', 'allowCredits': True,
+            'entries': [
+                {'date': '2024-02-29', 'model': 'synthetic', 'cost': -1.25, 'requests': 0},
+                {'date': '0001-01-01', 'estimatedCost': midpoint, 'inputTokens': 2**63 - 1},
+            ],
+        }
+        cost_snapshot['providers'][0]['limits']['costUsage'] = history
+        cost_snapshot['providers'][0]['cachedLimits']['costUsage'] = history
+        cost_path = data / 'cost-history.json'
+        cost_path.write_text(json.dumps(cost_snapshot), encoding='utf8')
+        for cmd in ('usage', 'limits', 'tokens'):
+            for fmt in ('json', 'text'):
+                compare(f'native cost history {cmd} {fmt}', [cmd, '--snapshot', cost_path,
+                        '--format', fmt], native_env, native_cases)
         stamp = originals['generatedAt']
         for index, value in enumerate(('1970-01-01T00:00:00Z', '2024-02-29T23:59:59.00000000Z',
                                        '2024-03-01T00:00:00.12000Z', '2023-06-15T09:20:10.1234567891234567Z')):
@@ -144,6 +164,17 @@ with private_fixture() as tmp:
              variant('null-local',lambda v:v['providers'][0].update(localUsage=None)),
              variant('alias-date',lambda v:v.update(generatedAt='2023-06-15T09:20:10.123456789Z')),
              variant('private-label',lambda v:v['providers'][0]['limits'].update(account=dict(label='SYNTHETIC_PRIVATE',source='Example')))]
+    # Validation covers cached histories even when the command selects another provider.
+    for field, bad_value in [('date', '1900-02-29'), ('requests', -1), ('model', 'x' * 1025)]:
+        wire = copy.deepcopy(originals)
+        bad = copy.deepcopy(history)
+        bad['entries'][-1][field] = bad_value
+        wire['providers'][4]['cachedLimits']['costUsage'] = bad
+        path = data / f'invalid-cost-{field}.json'
+        path.write_text(json.dumps(wire), encoding='utf8')
+        argv = ['tokens', '--provider', 'codex', '--snapshot', path, '--format', 'json']
+        compare('invalid cached cost history ' + field, argv)
+        assert cases[-1]['status'] == 1
     for index, metadata in enumerate([
         {'source': ''}, {'source': None}, {'label': 'missing source'},
         {'source': ' QA'}, {'source': 'QA', 'label': 'a' * 257},
@@ -246,6 +277,7 @@ with private_fixture() as tmp:
         ('native-utc-epoch',['usage','--snapshot',data/'utc-0.json','--format','json']),
         ('native-utc-fraction',['usage','--snapshot',data/'utc-3.json','--format','json']),
         ('native-root-extension',['tokens','--snapshot',data/'extra']),
+        ('native-cost-history',['usage','--snapshot',cost_path,'--format','json']),
         ('native-display-account',['usage','--snapshot',data/'display-accounts.json','--format','json']),
         ('typed-local-wall-clock',['tokens','--snapshot',data/'local-wall-clock'])]:
         samples={m:[] for m in ['legacy','rust']}

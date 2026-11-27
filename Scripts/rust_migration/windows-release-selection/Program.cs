@@ -135,4 +135,3 @@ sealed class Handler(byte[][] pages) : HttpMessageHandler
         return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(pages[Calls++]) });
     }
 }
-
